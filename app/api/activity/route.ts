@@ -12,6 +12,8 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { z } from 'zod'
 
+export const dynamic = 'force-dynamic'
+
 const querySchema = z.object({
   take: z.coerce.number().min(1).max(50).default(20),
   skip: z.coerce.number().min(0).default(0)
