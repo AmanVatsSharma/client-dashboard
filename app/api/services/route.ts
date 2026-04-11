@@ -1,3 +1,11 @@
+/**
+ * @file route.ts
+ * @module client-dashboard/api/services
+ * @description List and create services for the signed-in user (includes invoice/ticket counts).
+ * @author BharatERP
+ * @created 2026-04-09
+ */
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
@@ -13,6 +21,9 @@ export async function GET(request: NextRequest) {
     const services = await prisma.service.findMany({
       where: { userId: session.user.id },
       include: {
+        _count: {
+          select: { invoices: true, tickets: true }
+        },
         invoices: {
           orderBy: { createdAt: 'desc' },
           take: 5

@@ -335,4 +335,5 @@ export {
   ToastAction,
   Toaster,
   useToast,
+  toast,
 }

@@ -1,79 +1,80 @@
-# Vedpragya Bharat Client Dashboard - Next.js 14
+# Vedpragya client dashboard
 
-## Project Structure
+Next.js 14 (App Router) client portal: services, invoices, support tickets, profile. Stack: **PostgreSQL**, **Prisma**, **NextAuth** (credentials + JWT session), **Tailwind CSS v4**, **Radix UI**.
 
+## Layout (actual paths)
+
+- `app/` — routes and API route handlers (`app/api/**/route.ts`)
+- `components/` — `components/ui/*`, `components/dashboard/*`, `providers.tsx`
+- `lib/` — `auth.ts`, `db.ts`, `utils.ts`, `activity-log.ts` (server writes), display helpers
+- `prisma/schema.prisma` — data model
+- `types/` — shared TS types, NextAuth module augmentation
+
+There is **no** `src/` directory; `@/*` maps to the repo root (`tsconfig.json`).
+
+## Environment
+
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | PostgreSQL connection string for Prisma |
+| `NEXTAUTH_URL` | Public app URL (e.g. `http://localhost:3000`) |
+| `NEXTAUTH_SECRET` | Secret for JWT signing (required in production) |
+
+Optional for seed:
+
+| Variable | Default |
+|----------|---------|
+| `SEED_USER_EMAIL` | `demo@vedpragya.local` |
+| `SEED_USER_PASSWORD` | `DemoPass123!` |
+
+## Scripts
+
+```bash
+npm install
+npx prisma generate
+npx prisma db push
+npm run db:seed    # requires DATABASE_URL; uses tsx via devDependency
+npm run dev
+npm run build
+npm run lint
+npm run test       # vitest unit tests
 ```
-vedpragya-dashboard/
-├── src/
-│   ├── app/
-│   │   ├── (auth)/
-│   │   │   ├── login/
-│   │   │   │   └── page.tsx
-│   │   │   ├── signup/
-│   │   │   │   └── page.tsx
-│   │   │   └── layout.tsx
-│   │   ├── dashboard/
-│   │   │   ├── page.tsx
-│   │   │   ├── services/
-│   │   │   │   └── page.tsx
-│   │   │   ├── invoices/
-│   │   │   │   └── page.tsx
-│   │   │   ├── support/
-│   │   │   │   ├── page.tsx
-│   │   │   │   └── [ticketId]/
-│   │   │   │       └── page.tsx
-│   │   │   ├── profile/
-│   │   │   │   └── page.tsx
-│   │   │   └── layout.tsx
-│   │   ├── api/
-│   │   │   ├── auth/
-│   │   │   │   └── [...nextauth]/
-│   │   │   │       └── route.ts
-│   │   │   ├── services/
-│   │   │   │   └── route.ts
-│   │   │   ├── invoices/
-│   │   │   │   └── route.ts
-│   │   │   ├── payments/
-│   │   │   │   └── route.ts
-│   │   │   └── tickets/
-│   │   │       └── route.ts
-│   │   ├── globals.css
-│   │   ├── layout.tsx
-│   │   └── page.tsx
-│   ├── components/
-│   │   ├── ui/ (shadcn/ui components)
-│   │   ├── auth/
-│   │   ├── dashboard/
-│   │   ├── services/
-│   │   ├── invoices/
-│   │   ├── support/
-│   │   └── layout/
-│   ├── lib/
-│   │   ├── auth.ts
-│   │   ├── db.ts
-│   │   ├── utils.ts
-│   │   └── validations.ts
-│   └── types/
-│       └── index.ts
-├── prisma/
-│   ├── schema.prisma
-│   └── seed.ts
-├── public/
-│   └── logo.png
-├── package.json
-├── next.config.js
-├── tailwind.config.ts
-## Tailwind CSS v4
 
-Tailwind v4 is configured using CSS-first theming via `@theme` in `app/globals.css` and the official PostCSS plugin in `postcss.config.mjs`.
+## API route map (session-backed unless noted)
 
-Quick checks:
-- Ensure dependencies are installed: `tailwindcss@^4` and `@tailwindcss/postcss@^4`
-- Import in CSS: `@import "tailwindcss";`
-- Dev: `pnpm dev` and open the app; utilities should render
+| Method | Path | Notes |
+|--------|------|--------|
+| GET/POST | `/api/auth/[...nextauth]` | NextAuth |
+| POST | `/api/auth/signup` | Public registration |
+| GET, POST | `/api/services` | User’s services (+ counts) |
+| GET, POST | `/api/invoices` | List / create |
+| GET, PATCH | `/api/invoices/[invoiceId]` | One invoice; PATCH mark paid / cancel |
+| GET, POST | `/api/tickets` | Tickets |
+| GET | `/api/tickets/[ticketId]` | Ticket + messages |
+| POST | `/api/tickets/[ticketId]/messages` | Client reply |
+| GET | `/api/activity` | Activity log (`take`, `skip`) |
+| PATCH | `/api/user/profile` | Name, company, phone |
+| POST | `/api/user/password` | Change password |
 
-Note: If `pnpm` blocks native builds (`@tailwindcss/oxide`), Tailwind falls back to WASM automatically; no action required.
+## App routes
 
-├── tsconfig.json
-└── .env.example
+- `/`, `/login`, `/signup`
+- `/dashboard`, `/dashboard/services`, `/dashboard/invoices`, `/dashboard/support`, `/dashboard/support/[ticketId]`, `/dashboard/profile`
+
+## Middleware
+
+`middleware.ts` protects `/dashboard/*` with NextAuth JWT. API routes enforce the session inside each handler and return `401` JSON when unauthenticated.
+
+## Tests
+
+`tests/*.test.ts` — Vitest, pure logic (invoice transitions, Zod schemas). Run `npm run test`.
+
+## Syncing to another checkout
+
+If another folder (e.g. a root-owned clone) cannot be edited from your IDE, copy from this tree:
+
+```bash
+rsync -a --exclude node_modules --exclude .next --exclude .git ./ /path/to/target/
 ```
+
+Then run `npm install` and `npm run build` in the target.

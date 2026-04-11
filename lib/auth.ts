@@ -37,6 +37,7 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name || '',
           company: user.company || '',
+          phone: user.phone || ''
         }
       }
     })
@@ -46,16 +47,30 @@ export const authOptions: NextAuthOptions = {
     signIn: "/login"
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.company = user.company || undefined
+        token.name = user.name || undefined
+        token.phone = user.phone || undefined
+      }
+      if (trigger === 'update' && session) {
+        const s = session as {
+          name?: string
+          company?: string | null
+          phone?: string | null
+        }
+        if (s.name !== undefined) token.name = s.name
+        if (s.company !== undefined) token.company = s.company ?? undefined
+        if (s.phone !== undefined) token.phone = s.phone ?? undefined
       }
       return token
     },
     async session({ session, token }) {
       if (token) {
         session.user.id = token.sub!
-        session.user.company = token.company as string
+        session.user.company = (token.company as string) || ''
+        session.user.name = (token.name as string) || session.user.name || ''
+        session.user.phone = (token.phone as string) || ''
       }
       return session
     }

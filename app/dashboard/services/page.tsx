@@ -1,7 +1,16 @@
+/**
+ * @file page.tsx
+ * @module client-dashboard/dashboard/services
+ * @description Services grid/list loaded from /api/services with search and status filter.
+ * @author BharatERP
+ * @created 2026-04-09
+ */
+
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import type { ServiceStatus, ServiceType } from '@prisma/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -12,7 +21,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
+  SelectValue
 } from '@/components/ui/select'
 import {
   Package,
@@ -23,9 +32,23 @@ import {
   CreditCard,
   CheckCircle,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { serviceStatusToUi, serviceTypeToUi, type UiServiceStatus } from '@/lib/service-display'
+
+type ServiceApi = {
+  id: string
+  name: string
+  description: string | null
+  type: ServiceType
+  status: ServiceStatus
+  price: number
+  nextBilling: string | null
+  createdAt: string
+  _count: { invoices: number; tickets: number }
+}
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -40,102 +63,68 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 }
 }
 
+function getStatusIcon(status: UiServiceStatus) {
+  switch (status) {
+    case 'active':
+      return <CheckCircle className="h-4 w-4 text-green-600" />
+    case 'pending':
+      return <Clock className="h-4 w-4 text-blue-600" />
+    case 'completed':
+      return <CheckCircle className="h-4 w-4 text-gray-600" />
+    case 'inactive':
+      return <AlertCircle className="h-4 w-4 text-amber-600" />
+    default:
+      return <AlertCircle className="h-4 w-4 text-yellow-600" />
+  }
+}
+
+function getStatusBadge(status: UiServiceStatus) {
+  const variants = {
+    active: 'default',
+    pending: 'secondary',
+    completed: 'outline',
+    inactive: 'secondary'
+  }
+  return variants[status] || 'secondary'
+}
+
 export default function ServicesPage() {
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [services, setServices] = useState<ServiceApi[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Mock data - replace with real API calls
-  const services = [
-    {
-      id: '1',
-      name: 'Premium Web Development Package',
-      description: 'Full-stack web application with modern UI/UX design',
-      type: 'subscription',
-      status: 'active',
-      price: 15000,
-      nextBilling: new Date('2025-10-15'),
-      features: ['Custom Design', 'Responsive Layout', 'SEO Optimized', '24/7 Support'],
-      startDate: new Date('2025-01-15'),
-      invoices: 8
-    },
-    {
-      id: '2',
-      name: 'SEO Optimization Suite',
-      description: 'Complete search engine optimization for better rankings',
-      type: 'subscription',
-      status: 'active',
-      price: 8000,
-      nextBilling: new Date('2025-10-20'),
-      features: ['Keyword Research', 'On-page SEO', 'Link Building', 'Analytics'],
-      startDate: new Date('2025-02-01'),
-      invoices: 7
-    },
-    {
-      id: '3',
-      name: 'Brand Identity Design',
-      description: 'Logo, business cards, and complete brand guidelines',
-      type: 'one-time',
-      status: 'completed',
-      price: 12000,
-      nextBilling: null,
-      features: ['Logo Design', 'Brand Guidelines', 'Business Cards', 'Letterhead'],
-      startDate: new Date('2024-12-01'),
-      invoices: 1
-    },
-    {
-      id: '4',
-      name: 'Cloud Hosting & Maintenance',
-      description: 'Reliable cloud hosting with regular maintenance',
-      type: 'subscription',
-      status: 'active',
-      price: 3500,
-      nextBilling: new Date('2025-10-25'),
-      features: ['99.9% Uptime', 'Daily Backups', 'SSL Certificate', 'CDN'],
-      startDate: new Date('2025-03-01'),
-      invoices: 6
-    },
-    {
-      id: '5',
-      name: 'Mobile App Development',
-      description: 'Cross-platform mobile application development',
-      type: 'one-time',
-      status: 'in-progress',
-      price: 45000,
-      nextBilling: null,
-      features: ['iOS & Android', 'API Integration', 'Push Notifications', 'App Store Submission'],
-      startDate: new Date('2025-08-01'),
-      invoices: 2
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/services')
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to load services')
+      }
+      const data = (await res.json()) as ServiceApi[]
+      setServices(data)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load')
+    } finally {
+      setLoading(false)
     }
-  ]
+  }, [])
 
-  const filteredServices = services.filter(service => {
-    const matchesSearch = service.name.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesStatus = statusFilter === 'all' || service.status === statusFilter
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const filteredServices = services.filter((service) => {
+    const uiStatus = serviceStatusToUi(service.status)
+    const matchesSearch =
+      service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (service.description ?? '').toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesStatus = statusFilter === 'all' || uiStatus === statusFilter
     return matchesSearch && matchesStatus
   })
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <CheckCircle className="h-4 w-4 text-green-600" />
-      case 'in-progress':
-        return <Clock className="h-4 w-4 text-blue-600" />
-      case 'completed':
-        return <CheckCircle className="h-4 w-4 text-gray-600" />
-      default:
-        return <AlertCircle className="h-4 w-4 text-yellow-600" />
-    }
-  }
-
-  const getStatusBadge = (status: string) => {
-    const variants = {
-      active: 'default',
-      'in-progress': 'secondary',
-      completed: 'outline',
-      pending: 'destructive'
-    }
-    return variants[status as keyof typeof variants] || 'secondary'
-  }
 
   return (
     <motion.div
@@ -144,19 +133,23 @@ export default function ServicesPage() {
       animate="visible"
       className="space-y-8"
     >
-      {/* Header */}
       <motion.div variants={itemVariants} className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-primary-700">Services</h1>
           <p className="text-muted-foreground">Manage all your services and subscriptions</p>
         </div>
-        <Button className="gold-gradient text-primary-900">
+        <Button className="gold-gradient text-primary-900" type="button">
           <Package className="mr-2 h-4 w-4" />
           Request New Service
         </Button>
       </motion.div>
 
-      {/* Filters */}
+      {error && (
+        <motion.div variants={itemVariants} className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+          {error}
+        </motion.div>
+      )}
+
       <motion.div variants={itemVariants}>
         <Card>
           <CardContent className="pt-6">
@@ -178,9 +171,9 @@ export default function ServicesPage() {
                 <SelectContent>
                   <SelectItem value="all">All Services</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -188,152 +181,157 @@ export default function ServicesPage() {
         </Card>
       </motion.div>
 
-      {/* Services Grid */}
-      <motion.div variants={itemVariants}>
-        <Tabs defaultValue="grid" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="grid">Grid View</TabsTrigger>
-            <TabsTrigger value="list">List View</TabsTrigger>
-          </TabsList>
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <motion.div variants={itemVariants}>
+          <Tabs defaultValue="grid" className="space-y-6">
+            <TabsList>
+              <TabsTrigger value="grid">Grid View</TabsTrigger>
+              <TabsTrigger value="list">List View</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="grid" className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredServices.map((service, index) => (
-              <motion.div
-                key={service.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ scale: 1.02 }}
-                className="h-full"
-              >
-                <Card className="h-full hover:shadow-lg transition-all duration-300">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-2">
-                        {getStatusIcon(service.status)}
-                        <Badge variant={getStatusBadge(service.status) as any}>
-                          {service.status}
-                        </Badge>
-                      </div>
-                      <Badge variant="outline">
-                        {service.type === 'subscription' ? 'Subscription' : 'One-time'}
-                      </Badge>
-                    </div>
-                    <CardTitle className="text-lg">{service.name}</CardTitle>
-                    <CardDescription>{service.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-2xl font-bold gradient-text">
-                        {formatCurrency(service.price)}
-                      </span>
-                      {service.type === 'subscription' && (
-                        <span className="text-sm text-muted-foreground">/month</span>
-                      )}
-                    </div>
-
-                    {service.nextBilling && (
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Calendar className="mr-2 h-4 w-4" />
-                        Next billing: {formatDate(service.nextBilling)}
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">Features:</p>
-                      <ul className="text-sm space-y-1">
-                        {service.features.slice(0, 3).map((feature, idx) => (
-                          <li key={idx} className="flex items-center">
-                            <CheckCircle className="mr-2 h-3 w-3 text-green-600" />
-                            {feature}
-                          </li>
-                        ))}
-                        {service.features.length > 3 && (
-                          <li className="text-muted-foreground">
-                            +{service.features.length - 3} more features
-                          </li>
-                        )}
-                      </ul>
-                    </div>
-
-                    <div className="flex gap-2 pt-4">
-                      <Button size="sm" className="flex-1">
-                        <Download className="mr-2 h-4 w-4" />
-                        View Invoice
-                      </Button>
-                      <Button size="sm" variant="outline" className="flex-1">
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        Pay Now
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </TabsContent>
-
-          <TabsContent value="list">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="space-y-4">
-                  {filteredServices.map((service, index) => (
+            <TabsContent value="grid" className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {filteredServices.length === 0 ? (
+                <p className="col-span-full text-center text-muted-foreground py-12">No services match your filters.</p>
+              ) : (
+                filteredServices.map((service, index) => {
+                  const uiStatus = serviceStatusToUi(service.status)
+                  const uiType = serviceTypeToUi(service.type)
+                  const nextBilling = service.nextBilling ? new Date(service.nextBilling) : null
+                  return (
                     <motion.div
                       key={service.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: index * 0.05 }}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                      whileHover={{ scale: 1.02 }}
+                      className="h-full"
                     >
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
-                          {getStatusIcon(service.status)}
-                          <Badge variant={getStatusBadge(service.status) as any} className="text-xs">
-                            {service.status}
-                          </Badge>
-                        </div>
-                        <div>
-                          <h3 className="font-medium">{service.name}</h3>
-                          <p className="text-sm text-muted-foreground">{service.description}</p>
-                          <div className="flex items-center space-x-4 mt-1">
-                            <Badge variant="outline" className="text-xs">
-                              {service.type}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground">
-                              Started: {formatDate(service.startDate)}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {service.invoices} invoices
-                            </span>
+                      <Card className="h-full hover:shadow-lg transition-all duration-300">
+                        <CardHeader>
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center space-x-2">
+                              {getStatusIcon(uiStatus)}
+                              <Badge variant={getStatusBadge(uiStatus) as 'default' | 'secondary' | 'destructive' | 'outline'}>
+                                {uiStatus}
+                              </Badge>
+                            </div>
+                            <Badge variant="outline">{uiType === 'subscription' ? 'Subscription' : 'One-time'}</Badge>
                           </div>
-                        </div>
-                      </div>
-                      <div className="text-right space-y-2">
-                        <p className="font-bold text-lg gradient-text">
-                          {formatCurrency(service.price)}
-                          {service.type === 'subscription' && <span className="text-sm">/mo</span>}
-                        </p>
-                        {service.nextBilling && (
-                          <p className="text-xs text-muted-foreground">
-                            Next: {formatDate(service.nextBilling)}
+                          <CardTitle className="text-lg">{service.name}</CardTitle>
+                          <CardDescription>{service.description ?? 'No description'}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="flex justify-between items-center">
+                            <span className="text-2xl font-bold gradient-text">{formatCurrency(service.price)}</span>
+                            {uiType === 'subscription' && (
+                              <span className="text-sm text-muted-foreground">/month</span>
+                            )}
+                          </div>
+
+                          {nextBilling && (
+                            <div className="flex items-center text-sm text-muted-foreground">
+                              <Calendar className="mr-2 h-4 w-4" />
+                              Next billing: {formatDate(nextBilling)}
+                            </div>
+                          )}
+
+                          <p className="text-sm text-muted-foreground">
+                            {service._count.invoices} invoice{service._count.invoices !== 1 ? 's' : ''} ·{' '}
+                            {service._count.tickets} open ticket{service._count.tickets !== 1 ? 's' : ''}
                           </p>
-                        )}
-                        <div className="flex space-x-2">
-                          <Button size="sm" variant="outline">
-                            View Details
-                          </Button>
-                          <Button size="sm">
-                            Manage
-                          </Button>
-                        </div>
-                      </div>
+
+                          <div className="flex gap-2 pt-4">
+                            <Button size="sm" className="flex-1" type="button" variant="secondary">
+                              <Download className="mr-2 h-4 w-4" />
+                              View Invoice
+                            </Button>
+                            <Button size="sm" variant="outline" className="flex-1" type="button">
+                              <CreditCard className="mr-2 h-4 w-4" />
+                              Pay Now
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
                     </motion.div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </motion.div>
+                  )
+                })
+              )}
+            </TabsContent>
+
+            <TabsContent value="list">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="space-y-4">
+                    {filteredServices.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8">No services match your filters.</p>
+                    ) : (
+                      filteredServices.map((service, index) => {
+                        const uiStatus = serviceStatusToUi(service.status)
+                        const uiType = serviceTypeToUi(service.type)
+                        const nextBilling = service.nextBilling ? new Date(service.nextBilling) : null
+                        return (
+                          <motion.div
+                            key={service.id}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.03 }}
+                            className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="flex items-center space-x-4">
+                              <div className="flex items-center space-x-2">
+                                {getStatusIcon(uiStatus)}
+                                <Badge variant={getStatusBadge(uiStatus) as 'default' | 'secondary' | 'destructive' | 'outline'} className="text-xs">
+                                  {uiStatus}
+                                </Badge>
+                              </div>
+                              <div>
+                                <h3 className="font-medium">{service.name}</h3>
+                                <p className="text-sm text-muted-foreground">{service.description ?? '—'}</p>
+                                <div className="flex items-center space-x-4 mt-1">
+                                  <Badge variant="outline" className="text-xs">
+                                    {uiType}
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    Started: {formatDate(service.createdAt)}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {service._count.invoices} invoices
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right space-y-2">
+                              <p className="font-bold text-lg gradient-text">
+                                {formatCurrency(service.price)}
+                                {uiType === 'subscription' && <span className="text-sm">/mo</span>}
+                              </p>
+                              {nextBilling && (
+                                <p className="text-xs text-muted-foreground">Next: {formatDate(nextBilling)}</p>
+                              )}
+                              <div className="flex space-x-2">
+                                <Button size="sm" variant="outline" type="button">
+                                  View Details
+                                </Button>
+                                <Button size="sm" type="button">
+                                  Manage
+                                </Button>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )
+                      })
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </motion.div>
+      )}
     </motion.div>
   )
 }

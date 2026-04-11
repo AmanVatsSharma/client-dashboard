@@ -1,13 +1,20 @@
+/**
+ * @file route.ts
+ * @module client-dashboard/api/auth/signup
+ * @description Register a new user and record an activity log entry.
+ * @author BharatERP
+ * @created 2026-04-09
+ */
+
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/db'
-import { addActivityLog } from '@/lib/utils'
+import { addActivityLog } from '@/lib/activity-log'
 
 export async function POST(request: NextRequest) {
   try {
     const { name, email, company, phone, password } = await request.json()
 
-    // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email }
     })
@@ -19,10 +26,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    // Create user
     const user = await prisma.user.create({
       data: {
         name,
@@ -33,7 +38,6 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Log activity
     await addActivityLog(user.id, 'Account created')
 
     return NextResponse.json(

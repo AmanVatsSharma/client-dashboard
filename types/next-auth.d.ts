@@ -8,6 +8,7 @@ declare module "next-auth" {
       name: string
       image?: string
       company?: string
+      phone?: string
     }
   }
 
@@ -16,11 +17,14 @@ declare module "next-auth" {
     email: string
     name: string | null
     company: string | null
+    phone?: string | null
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
     company?: string
+    name?: string
+    phone?: string
   }
 }
