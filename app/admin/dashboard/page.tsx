@@ -152,7 +152,7 @@ export default async function AdminDashboardPage() {
                 <p className="text-sm">All caught up!</p>
               </div>
             ) : (
-              recentTickets.map((ticket) => (
+              recentTickets.map((ticket: typeof recentTickets[number]) => (
                 <Link key={ticket.id} href={`/admin/tickets/${ticket.id}`}>
                   <div className="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer">
                     <div className="flex-1 min-w-0">
@@ -197,7 +197,7 @@ export default async function AdminDashboardPage() {
                 <p className="text-sm">No companies yet</p>
               </div>
             ) : (
-              recentCompanies.map((company) => (
+              recentCompanies.map((company: typeof recentCompanies[number]) => (
                 <Link key={company.id} href={`/admin/companies/${company.id}`}>
                   <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer">
                     <div className="h-9 w-9 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
