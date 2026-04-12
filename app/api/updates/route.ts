@@ -21,7 +21,7 @@ export async function GET() {
       orderBy: { createdAt: 'desc' }
     })
 
-    const result = updates.map((u) => ({
+    const result = updates.map((u: typeof updates[number]) => ({
       id: u.id,
       title: u.title,
       content: u.content,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin-guard'
 import { prisma } from '@/lib/db'
+import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 
@@ -53,7 +54,7 @@ export async function POST(
 
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const user = await tx.user.create({
         data: { name, email, password: hashedPassword, phone, role: 'CLIENT' }
       })
