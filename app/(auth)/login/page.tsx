@@ -36,8 +36,8 @@ export default function LoginPage() {
       if (result?.error) {
         setError('Invalid credentials. Please try again.')
       } else {
-        router.push('/dashboard')
         router.refresh()
+        router.push('/dashboard')
       }
     } catch (error) {
       setError('An error occurred. Please try again.')
@@ -149,10 +149,7 @@ export default function LoginPage() {
               </Button>
 
               <p className="text-sm text-center text-muted-foreground">
-                Don't have an account?{' '}
-                <Link href="/signup" className="font-medium gradient-text hover:underline">
-                  Sign up
-                </Link>
+                Access is by invitation only. Contact your account manager for credentials.
               </p>
             </CardFooter>
           </form>

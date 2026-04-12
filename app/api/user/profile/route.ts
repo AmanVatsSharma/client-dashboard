@@ -2,8 +2,6 @@
  * @file route.ts
  * @module client-dashboard/api/user/profile
  * @description Update profile fields for the session user.
- * @author BharatERP
- * @created 2026-04-09
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -11,7 +9,16 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { addActivityLog } from '@/lib/activity-log'
-import { profilePatchBodySchema } from '@/lib/schemas/api'
+import { z } from 'zod'
+
+const profilePatchSchema = z
+  .object({
+    name: z.string().min(1).max(120).optional(),
+    phone: z.union([z.string().max(32), z.null()]).optional()
+  })
+  .refine((data) => data.name !== undefined || data.phone !== undefined, {
+    message: 'At least one field is required'
+  })
 
 export async function PATCH(request: NextRequest) {
   try {
@@ -21,7 +28,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const json = await request.json()
-    const parsed = profilePatchBodySchema.safeParse(json)
+    const parsed = profilePatchSchema.safeParse(json)
     if (!parsed.success) {
       return NextResponse.json(
         { error: 'Invalid body', details: parsed.error.flatten() },
@@ -29,9 +36,8 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    const data: { name?: string; company?: string | null; phone?: string | null } = {}
+    const data: { name?: string; phone?: string | null } = {}
     if (parsed.data.name !== undefined) data.name = parsed.data.name
-    if (parsed.data.company !== undefined) data.company = parsed.data.company
     if (parsed.data.phone !== undefined) data.phone = parsed.data.phone
 
     const user = await prisma.user.update({
@@ -41,7 +47,6 @@ export async function PATCH(request: NextRequest) {
         id: true,
         name: true,
         email: true,
-        company: true,
         phone: true
       }
     })

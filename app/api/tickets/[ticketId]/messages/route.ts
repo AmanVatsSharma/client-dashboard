@@ -1,28 +1,15 @@
-/**
- * @file route.ts
- * @module client-dashboard/api/tickets/[ticketId]/messages
- * @description Append a client message to a ticket owned by the session user.
- * @author BharatERP
- * @created 2026-04-09
- */
-
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import { requireClient } from '@/lib/admin-guard'
 import { prisma } from '@/lib/db'
-import { addActivityLog } from '@/lib/activity-log'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { ticketId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const { session, companyId, error } = await requireClient()
+    if (error) return error
 
-    const { ticketId } = params
     const body = await request.json()
     const message = typeof body.message === 'string' ? body.message.trim() : ''
 
@@ -31,7 +18,7 @@ export async function POST(
     }
 
     const ticket = await prisma.ticket.findFirst({
-      where: { id: ticketId, userId: session.user.id }
+      where: { id: params.ticketId, companyId: companyId! }
     })
 
     if (!ticket) {
@@ -39,30 +26,36 @@ export async function POST(
     }
 
     if (ticket.status === 'CLOSED' || ticket.status === 'RESOLVED') {
-      return NextResponse.json(
-        { error: 'Cannot add messages to a resolved or closed ticket' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Cannot add messages to a resolved or closed ticket' }, { status: 400 })
     }
 
     const created = await prisma.ticketMessage.create({
       data: {
-        ticketId,
+        ticketId: params.ticketId,
         message,
-        isAdmin: false
+        isAdmin: false,
+        authorId: session!.user.id,
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+            companyUsers: { select: { jobTitle: true, role: true }, take: 1 }
+          }
+        }
       }
     })
 
     await prisma.ticket.update({
-      where: { id: ticketId },
+      where: { id: params.ticketId },
       data: { updatedAt: new Date() }
     })
 
-    await addActivityLog(session.user.id, 'Ticket message sent', ticketId)
-
     return NextResponse.json(created, { status: 201 })
-  } catch (error) {
-    console.error('Ticket message error:', error)
+  } catch (err) {
+    console.error('POST /api/tickets/[id]/messages:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

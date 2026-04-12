@@ -15,6 +15,10 @@ export default async function DashboardLayout({
     redirect('/login')
   }
 
+  if (session.user.role === 'ADMIN') {
+    redirect('/admin/dashboard')
+  }
+
   return (
     <div className="min-h-screen bg-secondary">
       <DashboardSidebar />
