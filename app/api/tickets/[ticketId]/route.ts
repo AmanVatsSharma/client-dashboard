@@ -1,14 +1,5 @@
-/**
- * @file route.ts
- * @module client-dashboard/api/tickets/[ticketId]
- * @description Fetch a single ticket with messages for the signed-in user.
- * @author BharatERP
- * @created 2026-04-09
- */
-
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import { requireClient } from '@/lib/admin-guard'
 import { prisma } from '@/lib/db'
 
 export async function GET(
@@ -16,18 +7,27 @@ export async function GET(
   { params }: { params: { ticketId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { ticketId } = params
+    const { companyId, error } = await requireClient()
+    if (error) return error
 
     const ticket = await prisma.ticket.findFirst({
-      where: { id: ticketId, userId: session.user.id },
+      where: { id: params.ticketId, companyId: companyId! },
       include: {
         service: { select: { id: true, name: true } },
-        messages: { orderBy: { createdAt: 'asc' } }
+        openedBy: { select: { id: true, name: true } },
+        messages: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+                companyUsers: { select: { jobTitle: true, role: true }, take: 1 }
+              }
+            }
+          },
+          orderBy: { createdAt: 'asc' }
+        }
       }
     })
 
@@ -36,8 +36,8 @@ export async function GET(
     }
 
     return NextResponse.json(ticket)
-  } catch (error) {
-    console.error('Ticket fetch error:', error)
+  } catch (err) {
+    console.error('GET /api/tickets/[id]:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -1,11 +1,8 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   enableTracing = false
 }
 
@@ -14,129 +11,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
+// ── Enums ─────────────────────────────────────────────────────────────────────
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
+enum UserRole {
+  ADMIN
+  CLIENT
 }
 
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  password      String?
-  company       String?
-  phone         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  accounts      Account[]
-  sessions      Session[]
-  services      Service[]
-  invoices      Invoice[]
-  tickets       Ticket[]
-  activityLogs  ActivityLog[]
-}
-
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
-}
-
-model Service {
-  id          String      @id @default(cuid())
-  name        String
-  description String?
-  type        ServiceType
-  status      ServiceStatus
-  price       Float
-  userId      String
-  nextBilling DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  user     User      @relation(fields: [userId], references: [id])
-  invoices Invoice[]
-  tickets  Ticket[]
-}
-
-model Invoice {
-  id          String        @id @default(cuid())
-  invoiceNumber String      @unique
-  amount      Float
-  status      InvoiceStatus
-  dueDate     DateTime
-  paidAt      DateTime?
-  userId      String
-  serviceId   String?
-  description String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-
-  user    User     @relation(fields: [userId], references: [id])
-  service Service? @relation(fields: [serviceId], references: [id])
-}
-
-model Ticket {
-  id          String       @id @default(cuid())
-  title       String
-  description String
-  status      TicketStatus @default(OPEN)
-  priority    Priority     @default(MEDIUM)
-  userId      String
-  serviceId   String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-
-  user     User           @relation(fields: [userId], references: [id])
-  service  Service?       @relation(fields: [serviceId], references: [id])
-  messages TicketMessage[]
-}
-
-model TicketMessage {
-  id        String   @id @default(cuid())
-  message   String
-  isAdmin   Boolean  @default(false)
-  ticketId  String
-  createdAt DateTime @default(now())
-
-  ticket Ticket @relation(fields: [ticketId], references: [id])
-}
-
-model ActivityLog {
-  id        String   @id @default(cuid())
-  action    String
-  details   String?
-  userId    String
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id])
+enum CompanyUserRole {
+  OWNER
+  MANAGER
+  MEMBER
+  VIEWER
 }
 
 enum ServiceType {
@@ -170,4 +56,314 @@ enum Priority {
   MEDIUM
   HIGH
   URGENT
+}
+
+enum PaymentProofStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ── NextAuth adapter models ───────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ── Core User ─────────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  phone         String?
+  role          UserRole  @default(CLIENT)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // NextAuth relations
+  accounts Account[]
+  sessions Session[]
+
+  // Company membership (CLIENT users belong to a company)
+  companyUsers CompanyUser[]
+
+  // Admin activity relations
+  createdServices  Service[]       @relation("ServiceCreatedBy")
+  createdInvoices  Invoice[]       @relation("InvoiceCreatedBy")
+  openedTickets    Ticket[]        @relation("TicketOpenedBy")
+  ticketMessages   TicketMessage[] @relation("MessageAuthor")
+  activityLogs     ActivityLog[]
+
+  // Messaging
+  sentMessages     DirectMessage[] @relation("SentMessages")
+  receivedMessages DirectMessage[] @relation("ReceivedMessages")
+
+  // Updates & notes (admin authoring)
+  authoredUpdates ClientUpdate[]
+  authoredNotes   Note[]
+
+  // Payment proofs uploaded by this user
+  uploadedProofs PaymentProof[]
+
+  // Read receipts for updates
+  updateReads ClientUpdateRead[]
+}
+
+// ── Company (Client Organisation) ────────────────────────────────────────────
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  domain    String?
+  industry  String?
+  address   String?
+  country   String?
+  phone     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users         CompanyUser[]
+  services      Service[]
+  invoices      Invoice[]
+  tickets       Ticket[]
+  updates       ClientUpdate[]
+  notes         Note[]
+  paymentProofs PaymentProof[]
+}
+
+// ── Company membership with role ──────────────────────────────────────────────
+
+model CompanyUser {
+  id        String          @id @default(cuid())
+  userId    String
+  companyId String
+  role      CompanyUserRole @default(MEMBER)
+  jobTitle  String?
+  isActive  Boolean         @default(true)
+  joinedAt  DateTime        @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+}
+
+// ── Services ──────────────────────────────────────────────────────────────────
+
+model Service {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  type        ServiceType
+  status      ServiceStatus
+  price       Float
+  companyId   String
+  createdById String?
+  nextBilling DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  company   Company  @relation(fields: [companyId], references: [id])
+  createdBy User?    @relation("ServiceCreatedBy", fields: [createdById], references: [id])
+  invoices  Invoice[]
+  tickets   Ticket[]
+}
+
+// ── Invoices ──────────────────────────────────────────────────────────────────
+
+model Invoice {
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique
+  amount        Float
+  status        InvoiceStatus
+  dueDate       DateTime
+  paidAt        DateTime?
+  companyId     String
+  createdById   String?
+  serviceId     String?
+  description   String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  company       Company        @relation(fields: [companyId], references: [id])
+  createdBy     User?          @relation("InvoiceCreatedBy", fields: [createdById], references: [id])
+  service       Service?       @relation(fields: [serviceId], references: [id])
+  paymentProofs PaymentProof[]
+}
+
+// ── Support Tickets ───────────────────────────────────────────────────────────
+
+model Ticket {
+  id          String       @id @default(cuid())
+  title       String
+  description String
+  status      TicketStatus @default(OPEN)
+  priority    Priority     @default(MEDIUM)
+  companyId   String
+  openedById  String?
+  serviceId   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  company  Company         @relation(fields: [companyId], references: [id])
+  openedBy User?           @relation("TicketOpenedBy", fields: [openedById], references: [id])
+  service  Service?        @relation(fields: [serviceId], references: [id])
+  messages TicketMessage[]
+}
+
+model TicketMessage {
+  id        String   @id @default(cuid())
+  message   String   @db.Text
+  isAdmin   Boolean  @default(false)
+  ticketId  String
+  authorId  String?
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User?  @relation("MessageAuthor", fields: [authorId], references: [id])
+}
+
+// ── Payment system ────────────────────────────────────────────────────────────
+
+model BankAccount {
+  id             String   @id @default(cuid())
+  name           String
+  bankName       String
+  accountHolder  String
+  accountNumber  String
+  iban           String?
+  swiftCode      String?
+  routingNumber  String?
+  country        String
+  currency       String
+  currencySymbol String
+  isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model PaymentProof {
+  id           String             @id @default(cuid())
+  invoiceId    String
+  companyId    String
+  uploadedById String
+  fileName     String
+  fileData     String             @db.Text
+  fileType     String
+  fileSize     Int
+  status       PaymentProofStatus @default(PENDING)
+  adminNotes   String?
+  uploadedAt   DateTime           @default(now())
+  reviewedAt   DateTime?
+
+  invoice    Invoice @relation(fields: [invoiceId], references: [id])
+  company    Company @relation(fields: [companyId], references: [id])
+  uploadedBy User    @relation(fields: [uploadedById], references: [id])
+}
+
+// ── Messaging ────────────────────────────────────────────────────────────────
+
+model DirectMessage {
+  id         String   @id @default(cuid())
+  fromUserId String
+  toUserId   String
+  message    String   @db.Text
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  from User @relation("SentMessages", fields: [fromUserId], references: [id])
+  to   User @relation("ReceivedMessages", fields: [toUserId], references: [id])
+}
+
+// ── Updates / Announcements ───────────────────────────────────────────────────
+
+model ClientUpdate {
+  id        String   @id @default(cuid())
+  title     String
+  content   String   @db.Text
+  authorId  String
+  companyId String?
+  createdAt DateTime @default(now())
+
+  author  User              @relation(fields: [authorId], references: [id])
+  company Company?          @relation(fields: [companyId], references: [id])
+  reads   ClientUpdateRead[]
+}
+
+model ClientUpdateRead {
+  id       String   @id @default(cuid())
+  updateId String
+  userId   String
+  readAt   DateTime @default(now())
+
+  update ClientUpdate @relation(fields: [updateId], references: [id], onDelete: Cascade)
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([updateId, userId])
+}
+
+// ── Notes ─────────────────────────────────────────────────────────────────────
+
+model Note {
+  id        String   @id @default(cuid())
+  title     String
+  content   String   @db.Text
+  authorId  String
+  companyId String?
+  isPrivate Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author  User     @relation(fields: [authorId], references: [id])
+  company Company? @relation(fields: [companyId], references: [id])
+}
+
+// ── Activity Log ──────────────────────────────────────────────────────────────
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  action    String
+  details   String?
+  userId    String
+  companyId String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 }

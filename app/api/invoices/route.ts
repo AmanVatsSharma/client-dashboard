@@ -1,63 +1,28 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import { NextResponse } from 'next/server'
+import { requireClient } from '@/lib/admin-guard'
 import { prisma } from '@/lib/db'
-import { generateInvoiceNumber } from '@/lib/utils'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const { companyId, error } = await requireClient()
+    if (error) return error
 
     const invoices = await prisma.invoice.findMany({
-      where: { userId: session.user.id },
+      where: { companyId: companyId! },
       include: {
-        service: {
-          select: { name: true, type: true }
+        service: { select: { name: true, type: true } },
+        paymentProofs: {
+          select: { id: true, status: true, adminNotes: true, uploadedAt: true },
+          orderBy: { uploadedAt: 'desc' },
+          take: 1
         }
       },
       orderBy: { createdAt: 'desc' }
     })
 
     return NextResponse.json(invoices)
-  } catch (error) {
-    console.error('Invoices fetch error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { amount, serviceId, description, dueDate } = await request.json()
-
-    const invoice = await prisma.invoice.create({
-      data: {
-        invoiceNumber: generateInvoiceNumber(),
-        amount,
-        serviceId,
-        description,
-        dueDate: new Date(dueDate),
-        status: 'PENDING',
-        userId: session.user.id
-      }
-    })
-
-    return NextResponse.json(invoice, { status: 201 })
-  } catch (error) {
-    console.error('Invoice creation error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+  } catch (err) {
+    console.error('GET /api/invoices:', err)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

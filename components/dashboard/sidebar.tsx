@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import {
@@ -16,15 +18,24 @@ import {
   HelpCircle,
   Settings,
   Menu,
-  LogOut
+  LogOut,
+  CreditCard,
+  Bell,
+  FileText,
+  MessageSquare,
+  Building2
 } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Services', href: '/dashboard/services', icon: Package },
-  { name: 'Invoices & Payments', href: '/dashboard/invoices', icon: Receipt },
+  { name: 'Invoices', href: '/dashboard/invoices', icon: Receipt },
+  { name: 'Payments & Bank', href: '/dashboard/payments', icon: CreditCard },
   { name: 'Support Tickets', href: '/dashboard/support', icon: HelpCircle },
+  { name: 'Updates', href: '/dashboard/updates', icon: Bell, badgeKey: 'updates' },
+  { name: 'Shared Notes', href: '/dashboard/notes', icon: FileText },
+  { name: 'Messages', href: '/dashboard/messages', icon: MessageSquare, badgeKey: 'messages' },
   { name: 'Profile & Settings', href: '/dashboard/profile', icon: Settings },
 ]
 
@@ -34,16 +45,52 @@ interface SidebarProps {
 
 export function DashboardSidebar({ className }: SidebarProps) {
   const pathname = usePathname()
+  const { data: session } = useSession()
+  const [unreadCounts, setUnreadCounts] = useState<{ updates: number; messages: number }>({
+    updates: 0,
+    messages: 0
+  })
+
+  useEffect(() => {
+    async function loadCounts() {
+      try {
+        const [updatesRes, messagesRes] = await Promise.all([
+          fetch('/api/updates'),
+          fetch('/api/messages')
+        ])
+        if (updatesRes.ok) {
+          const updates = await updatesRes.json()
+          setUnreadCounts(prev => ({
+            ...prev,
+            updates: Array.isArray(updates) ? updates.filter((u: { isRead: boolean }) => !u.isRead).length : 0
+          }))
+        }
+        if (messagesRes.ok) {
+          const messages = await messagesRes.json()
+          const userId = session?.user?.id
+          setUnreadCounts(prev => ({
+            ...prev,
+            messages: Array.isArray(messages)
+              ? messages.filter((m: { isRead: boolean; fromUserId: string }) => !m.isRead && m.fromUserId !== userId).length
+              : 0
+          }))
+        }
+      } catch {
+        // counts are non-critical — ignore errors
+      }
+    }
+    loadCounts()
+  }, [session?.user?.id])
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="flex items-center px-6 py-8">
+      <div className="flex items-center px-6 py-6">
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.3 }}
-          className="flex  justify-center space-x-4"
+          className="flex justify-center space-x-4"
         >
           <Image
             src="/logo_favicon.webp"
@@ -57,22 +104,36 @@ export function DashboardSidebar({ className }: SidebarProps) {
         </motion.div>
       </div>
 
+      {/* Company context */}
+      {session?.user?.companyName && (
+        <div className="mx-3 mb-3 px-3 py-2 rounded-lg bg-primary-50 border border-primary-100 flex items-center gap-2">
+          <Building2 className="h-4 w-4 text-primary-600 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-primary-700 truncate">{session.user.companyName}</p>
+            {session.user.companyRole && (
+              <p className="text-[10px] text-primary-500 capitalize">{session.user.companyRole.toLowerCase()}</p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3">
-        <nav className="space-y-2">
+        <nav className="space-y-1">
           {navigation.map((item, index) => {
-            const isActive = pathname === item.href
+            const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+            const badgeCount = item.badgeKey ? unreadCounts[item.badgeKey as keyof typeof unreadCounts] : 0
             return (
               <motion.div
                 key={item.name}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.1 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
               >
                 <Link
                   href={item.href}
                   className={cn(
-                    'flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200 group',
+                    'flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group',
                     isActive
                       ? 'gold-gradient text-primary-900 shadow-lg'
                       : 'text-gray-600 hover:bg-gray-100 hover:text-primary-700'
@@ -80,19 +141,24 @@ export function DashboardSidebar({ className }: SidebarProps) {
                 >
                   <item.icon
                     className={cn(
-                      'mr-3 h-5 w-5 transition-transform duration-200',
+                      'mr-3 h-4 w-4 transition-transform duration-200',
                       isActive
                         ? 'text-primary-900'
                         : 'text-gray-400 group-hover:text-primary-600',
                       'group-hover:scale-110'
                     )}
                   />
-                  {item.name}
+                  <span className="flex-1">{item.name}</span>
+                  {badgeCount > 0 && !isActive && (
+                    <Badge className="ml-auto h-5 min-w-5 px-1.5 text-[10px] bg-primary-600 text-white">
+                      {badgeCount > 99 ? '99+' : badgeCount}
+                    </Badge>
+                  )}
                   {isActive && (
                     <motion.div
                       className="ml-auto w-2 h-2 bg-primary-900 rounded-full"
                       layoutId="activeIndicator"
-                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                     />
                   )}
                 </Link>
@@ -102,14 +168,17 @@ export function DashboardSidebar({ className }: SidebarProps) {
         </nav>
       </ScrollArea>
 
-      {/* Logout */}
-      <div className="px-3 py-6 border-t border-gray-200">
+      {/* User info + Logout */}
+      <div className="px-3 py-4 border-t border-gray-200">
+        {session?.user?.name && (
+          <p className="px-3 mb-2 text-xs text-gray-500 truncate">{session.user.name}</p>
+        )}
         <Button
           onClick={() => signOut()}
           variant="ghost"
           className="w-full justify-start text-gray-600 hover:text-red-600 hover:bg-red-50"
         >
-          <LogOut className="mr-3 h-5 w-5" />
+          <LogOut className="mr-3 h-4 w-4" />
           Sign Out
         </Button>
       </div>

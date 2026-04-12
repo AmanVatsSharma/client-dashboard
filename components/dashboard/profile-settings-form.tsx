@@ -1,9 +1,7 @@
 /**
  * @file profile-settings-form.tsx
  * @module client-dashboard/components/dashboard
- * @description Client form: profile PATCH + password change; syncs JWT via useSession update.
- * @author BharatERP
- * @created 2026-04-09
+ * @description Client form: profile PATCH + password change.
  */
 
 'use client'
@@ -19,14 +17,12 @@ import { Loader2 } from 'lucide-react'
 
 type Props = {
   initialName: string
-  initialCompany: string
   initialPhone: string
 }
 
-export function ProfileSettingsForm({ initialName, initialCompany, initialPhone }: Props) {
+export function ProfileSettingsForm({ initialName, initialPhone }: Props) {
   const { update } = useSession()
   const [name, setName] = useState(initialName)
-  const [company, setCompany] = useState(initialCompany)
   const [phone, setPhone] = useState(initialPhone)
   const [saving, setSaving] = useState(false)
 
@@ -43,7 +39,6 @@ export function ProfileSettingsForm({ initialName, initialCompany, initialPhone 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim() || undefined,
-          company: company.trim() || null,
           phone: phone.trim() || null
         })
       })
@@ -51,11 +46,7 @@ export function ProfileSettingsForm({ initialName, initialCompany, initialPhone 
       if (!res.ok) {
         throw new Error(data.error || 'Update failed')
       }
-      await update({
-        name: data.name ?? name,
-        company: data.company ?? company,
-        phone: data.phone ?? phone
-      })
+      await update({ name: data.name ?? name })
       toast({ title: 'Profile saved', description: 'Your details were updated.' })
     } catch (err) {
       toast({
@@ -108,17 +99,13 @@ export function ProfileSettingsForm({ initialName, initialCompany, initialPhone 
       <Card>
         <CardHeader>
           <CardTitle>Account details</CardTitle>
-          <CardDescription>Update how we display your name and contact info.</CardDescription>
+          <CardDescription>Update your display name and contact info.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={(e) => void saveProfile(e)} className="space-y-4 max-w-md">
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
               <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="company">Company</Label>
-              <Input id="company" value={company} onChange={(e) => setCompany(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone</Label>
@@ -134,7 +121,7 @@ export function ProfileSettingsForm({ initialName, initialCompany, initialPhone 
       <Card>
         <CardHeader>
           <CardTitle>Password</CardTitle>
-          <CardDescription>Change the password for your email login.</CardDescription>
+          <CardDescription>Change the password for your account login.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={(e) => void changePassword(e)} className="space-y-4 max-w-md">

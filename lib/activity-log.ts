@@ -11,14 +11,16 @@ import { prisma } from '@/lib/db'
 export async function addActivityLog(
   userId: string,
   action: string,
-  details?: string
+  details?: string,
+  companyId?: string
 ): Promise<void> {
   try {
     await prisma.activityLog.create({
       data: {
         userId,
         action,
-        details: details ?? null
+        details: details ?? null,
+        companyId: companyId ?? null,
       }
     })
   } catch (error) {

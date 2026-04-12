@@ -1,14 +1,12 @@
 /**
  * @file page.tsx
  * @module client-dashboard/dashboard/invoices
- * @description Invoices and payment history from /api/invoices; demo payment updates local state only.
- * @author BharatERP
- * @created 2026-04-09
+ * @description Invoices and payment history. Includes proof-of-payment upload for pending/overdue invoices.
  */
 
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import type { InvoiceStatus } from '@prisma/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -35,18 +33,30 @@ import {
 import {
   Receipt,
   Download,
-  CreditCard,
   Search,
   Calendar,
   CheckCircle,
   Clock,
   AlertTriangle,
-  Loader2
+  Loader2,
+  Upload,
+  FileCheck,
+  XCircle,
+  Hourglass,
+  Link as LinkIcon
 } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { invoiceStatusToUi, type UiInvoiceStatus } from '@/lib/invoice-display'
 import { toast } from '@/components/ui/toaster'
 import { downloadInvoicePdf } from '@/lib/invoice-pdf'
+import Link from 'next/link'
+
+interface PaymentProofInfo {
+  id: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  adminNotes?: string | null
+  uploadedAt: string
+}
 
 type InvoiceRow = {
   id: string
@@ -58,6 +68,7 @@ type InvoiceRow = {
   createdAt: string
   description: string | null
   service: { name: string; type: string } | null
+  paymentProofs?: PaymentProofInfo[]
 }
 
 const containerVariants = {
@@ -96,8 +107,174 @@ function getStatusBadge(status: UiInvoiceStatus) {
   return variants[status] || 'secondary'
 }
 
+function ProofStatusBadge({ proofs }: { proofs?: PaymentProofInfo[] }) {
+  if (!proofs || proofs.length === 0) return null
+  const latest = proofs[proofs.length - 1]
+  if (latest.status === 'PENDING') {
+    return (
+      <Badge className="text-[10px] bg-yellow-100 text-yellow-800 border-yellow-200 flex items-center gap-0.5 w-fit">
+        <Hourglass className="h-2.5 w-2.5" />Proof under review
+      </Badge>
+    )
+  }
+  if (latest.status === 'APPROVED') {
+    return (
+      <Badge className="text-[10px] bg-green-100 text-green-800 border-green-200 flex items-center gap-0.5 w-fit">
+        <FileCheck className="h-2.5 w-2.5" />Proof approved
+      </Badge>
+    )
+  }
+  return (
+    <div className="space-y-0.5">
+      <Badge className="text-[10px] bg-red-100 text-red-800 border-red-200 flex items-center gap-0.5 w-fit">
+        <XCircle className="h-2.5 w-2.5" />Proof rejected
+      </Badge>
+      {latest.adminNotes && (
+        <p className="text-[10px] text-red-600 max-w-[200px]">{latest.adminNotes}</p>
+      )}
+    </div>
+  )
+}
+
 function serviceLabel(inv: InvoiceRow): string {
   return inv.service?.name ?? inv.description ?? 'General'
+}
+
+const MAX_FILE_BYTES = 5 * 1024 * 1024 // 5 MB
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+
+function UploadProofDialog({
+  invoice,
+  open,
+  onClose,
+  onUploaded
+}: {
+  invoice: InvoiceRow
+  open: boolean
+  onClose: () => void
+  onUploaded: () => void
+}) {
+  const [file, setFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  function handleFile(f: File) {
+    if (!ALLOWED_TYPES.includes(f.type)) {
+      toast({ variant: 'destructive', title: 'Invalid file type', description: 'Please upload a JPEG, PNG, WEBP, or PDF.' })
+      return
+    }
+    if (f.size > MAX_FILE_BYTES) {
+      toast({ variant: 'destructive', title: 'File too large', description: 'Maximum file size is 5 MB.' })
+      return
+    }
+    setFile(f)
+  }
+
+  async function upload() {
+    if (!file) return
+    setUploading(true)
+    try {
+      const reader = new FileReader()
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve((reader.result as string).split(',')[1])
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+
+      const res = await fetch(`/api/invoices/${invoice.id}/payment-proof`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileData: base64,
+          fileType: file.type,
+          fileSize: file.size
+        })
+      })
+
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+
+      toast({ title: 'Proof uploaded', description: 'Our team will verify and update your invoice shortly.' })
+      onUploaded()
+      onClose()
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Upload failed', description: e instanceof Error ? e.message : 'Please try again.' })
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  function handleClose() {
+    if (!uploading) {
+      setFile(null)
+      onClose()
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Upload Payment Proof</DialogTitle>
+          <DialogDescription>
+            Invoice {invoice.invoiceNumber} · {formatCurrency(invoice.amount)}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div
+            className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center cursor-pointer hover:border-primary-400 hover:bg-primary-50/30 transition-colors"
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={e => e.preventDefault()}
+            onDrop={e => {
+              e.preventDefault()
+              const f = e.dataTransfer.files[0]
+              if (f) handleFile(f)
+            }}
+          >
+            <Upload className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+            {file ? (
+              <div>
+                <p className="text-sm font-medium text-slate-700">{file.name}</p>
+                <p className="text-xs text-slate-400 mt-1">{(file.size / 1024).toFixed(1)} KB</p>
+              </div>
+            ) : (
+              <div>
+                <p className="text-sm text-slate-600">Click or drag & drop to upload</p>
+                <p className="text-xs text-slate-400 mt-1">JPEG, PNG, WEBP or PDF · max 5 MB</p>
+              </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ALLOWED_TYPES.join(',')}
+              className="hidden"
+              onChange={e => {
+                const f = e.target.files?.[0]
+                if (f) handleFile(f)
+              }}
+            />
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700 space-y-1">
+            <p className="font-semibold">Before uploading:</p>
+            <p>1. Transfer the exact amount to one of our <Link href="/dashboard/payments" className="underline font-medium">bank accounts</Link></p>
+            <p>2. Include invoice number {invoice.invoiceNumber} in payment reference</p>
+            <p>3. Upload a screenshot or PDF of the transaction receipt here</p>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={handleClose} disabled={uploading}>Cancel</Button>
+          <Button onClick={upload} disabled={!file || uploading} className="gold-gradient text-primary-900">
+            {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+            Upload Proof
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 export default function InvoicesPage() {
@@ -106,7 +283,7 @@ export default function InvoicesPage() {
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRow | null>(null)
-  const [paymentLoading, setPaymentLoading] = useState<string | null>(null)
+  const [uploadTarget, setUploadTarget] = useState<InvoiceRow | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -194,34 +371,6 @@ export default function InvoicesPage() {
       invoice.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const handlePayment = async (invoiceId: string) => {
-    setPaymentLoading(invoiceId)
-    try {
-      const res = await fetch(`/api/invoices/${invoiceId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'PAID' })
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        throw new Error(data.error || 'Could not record payment')
-      }
-      await load()
-      toast({
-        title: 'Payment recorded',
-        description: 'Invoice marked as paid.'
-      })
-    } catch (e) {
-      toast({
-        variant: 'destructive',
-        title: 'Payment failed',
-        description: e instanceof Error ? e.message : 'Please try again.'
-      })
-    } finally {
-      setPaymentLoading(null)
-    }
-  }
-
   const downloadInvoice = async (invoiceId: string) => {
     try {
       const res = await fetch(`/api/invoices/${invoiceId}`)
@@ -250,6 +399,14 @@ export default function InvoicesPage() {
     }
   }
 
+  function canUploadProof(inv: InvoiceRow): boolean {
+    const ui = invoiceStatusToUi(inv.status)
+    if (ui === 'paid' || ui === 'cancelled') return false
+    const proofs = inv.paymentProofs ?? []
+    const hasPending = proofs.some(p => p.status === 'PENDING')
+    return !hasPending
+  }
+
   return (
     <motion.div
       variants={containerVariants}
@@ -262,6 +419,12 @@ export default function InvoicesPage() {
           <h1 className="text-3xl font-bold text-primary-700">Invoices & Payments</h1>
           <p className="text-muted-foreground">Track your billing and payment history</p>
         </div>
+        <Link href="/dashboard/payments">
+          <Button variant="outline" size="sm" className="hidden sm:flex items-center gap-2">
+            <LinkIcon className="h-4 w-4" />
+            Bank Details
+          </Button>
+        </Link>
       </motion.div>
 
       {error && (
@@ -353,81 +516,124 @@ export default function InvoicesPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>All Invoices</CardTitle>
-                    <CardDescription>Manage your invoices and payments</CardDescription>
+                    <CardDescription>
+                      Manage your invoices · upload proof of payment after bank transfer
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Invoice</TableHead>
-                          <TableHead>Service</TableHead>
-                          <TableHead>Amount</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Due Date</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredInvoices.length === 0 && (
-                          <TableRow>
-                            <TableCell colSpan={6} className="text-center text-muted-foreground">
-                              No invoices found.
-                            </TableCell>
-                          </TableRow>
-                        )}
-                        {filteredInvoices.map((invoice) => {
-                          const ui = invoiceStatusToUi(invoice.status)
-                          return (
-                            <TableRow key={invoice.id}>
-                              <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
-                              <TableCell>{serviceLabel(invoice)}</TableCell>
-                              <TableCell className="font-bold">{formatCurrency(invoice.amount)}</TableCell>
-                              <TableCell>
-                                <div className="flex items-center space-x-2">
+                    {/* Mobile card view */}
+                    <div className="block sm:hidden space-y-3">
+                      {filteredInvoices.length === 0 && (
+                        <p className="text-center text-muted-foreground py-6 text-sm">No invoices found.</p>
+                      )}
+                      {filteredInvoices.map(invoice => {
+                        const ui = invoiceStatusToUi(invoice.status)
+                        return (
+                          <Card key={invoice.id} className="border border-slate-200">
+                            <CardContent className="p-4 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <p className="font-medium text-sm">{invoice.invoiceNumber}</p>
+                                <div className="flex items-center gap-1">
                                   {getStatusIcon(ui)}
-                                  <Badge variant={getStatusBadge(ui)} className="text-xs capitalize">
-                                    {ui}
-                                  </Badge>
+                                  <Badge variant={getStatusBadge(ui)} className="text-xs capitalize">{ui}</Badge>
                                 </div>
-                              </TableCell>
-                              <TableCell>
-                                {formatDate(invoice.dueDate)}
-                                {ui === 'overdue' && (
-                                  <span className="ml-2 text-xs text-red-600 font-bold">Overdue</span>
+                              </div>
+                              <p className="text-xs text-slate-500">{serviceLabel(invoice)}</p>
+                              <p className="text-lg font-bold">{formatCurrency(invoice.amount)}</p>
+                              <p className="text-xs text-slate-400">Due {formatDate(invoice.dueDate)}</p>
+                              <ProofStatusBadge proofs={invoice.paymentProofs} />
+                              <div className="flex gap-2 pt-1">
+                                <Button size="sm" variant="outline" onClick={() => void downloadInvoice(invoice.id)}>
+                                  <Download className="h-3.5 w-3.5 mr-1" />PDF
+                                </Button>
+                                {canUploadProof(invoice) && (
+                                  <Button size="sm" className="gold-gradient text-primary-900" onClick={() => setUploadTarget(invoice)}>
+                                    <Upload className="h-3.5 w-3.5 mr-1" />Upload Proof
+                                  </Button>
                                 )}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex space-x-2">
-                                  <Button size="sm" variant="outline" onClick={() => setSelectedInvoice(invoice)}>
-                                    View
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => void downloadInvoice(invoice.id)}
-                                  >
-                                    <Download className="h-4 w-4" />
-                                  </Button>
-                                  {ui !== 'paid' && ui !== 'cancelled' && (
-                                    <Button
-                                      size="sm"
-                                      onClick={() => void handlePayment(invoice.id)}
-                                      disabled={paymentLoading === invoice.id}
-                                    >
-                                      {paymentLoading === invoice.id ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                      ) : (
-                                        <CreditCard className="h-4 w-4" />
-                                      )}
-                                    </Button>
-                                  )}
-                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )
+                      })}
+                    </div>
+
+                    {/* Desktop table view */}
+                    <div className="hidden sm:block">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Invoice</TableHead>
+                            <TableHead>Service</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Due Date</TableHead>
+                            <TableHead>Proof</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredInvoices.length === 0 && (
+                            <TableRow>
+                              <TableCell colSpan={7} className="text-center text-muted-foreground">
+                                No invoices found.
                               </TableCell>
                             </TableRow>
-                          )
-                        })}
-                      </TableBody>
-                    </Table>
+                          )}
+                          {filteredInvoices.map((invoice) => {
+                            const ui = invoiceStatusToUi(invoice.status)
+                            return (
+                              <TableRow key={invoice.id}>
+                                <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
+                                <TableCell>{serviceLabel(invoice)}</TableCell>
+                                <TableCell className="font-bold">{formatCurrency(invoice.amount)}</TableCell>
+                                <TableCell>
+                                  <div className="flex items-center space-x-2">
+                                    {getStatusIcon(ui)}
+                                    <Badge variant={getStatusBadge(ui)} className="text-xs capitalize">
+                                      {ui}
+                                    </Badge>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  {formatDate(invoice.dueDate)}
+                                  {ui === 'overdue' && (
+                                    <span className="ml-2 text-xs text-red-600 font-bold">Overdue</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <ProofStatusBadge proofs={invoice.paymentProofs} />
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex space-x-2">
+                                    <Button size="sm" variant="outline" onClick={() => setSelectedInvoice(invoice)}>
+                                      View
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => void downloadInvoice(invoice.id)}
+                                    >
+                                      <Download className="h-4 w-4" />
+                                    </Button>
+                                    {canUploadProof(invoice) && (
+                                      <Button
+                                        size="sm"
+                                        className="gold-gradient text-primary-900"
+                                        onClick={() => setUploadTarget(invoice)}
+                                      >
+                                        <Upload className="h-4 w-4 mr-1" />
+                                        Proof
+                                      </Button>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -482,6 +688,7 @@ export default function InvoicesPage() {
         </>
       )}
 
+      {/* Invoice detail dialog */}
       <Dialog open={!!selectedInvoice} onOpenChange={(open) => !open && setSelectedInvoice(null)}>
         {selectedInvoice && (
           <DialogContent>
@@ -510,26 +717,30 @@ export default function InvoicesPage() {
                   <span className="font-semibold">Paid At:</span> {formatDate(selectedInvoice.paidAt)}
                 </div>
               )}
+              {selectedInvoice.paymentProofs && selectedInvoice.paymentProofs.length > 0 && (
+                <div className="pt-2">
+                  <span className="font-semibold block mb-1">Payment Proof:</span>
+                  <ProofStatusBadge proofs={selectedInvoice.paymentProofs} />
+                </div>
+              )}
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
               <Button variant="outline" onClick={() => void downloadInvoice(selectedInvoice.id)}>
                 <Download className="h-4 w-4 mr-2" />
                 Download
               </Button>
-              {invoiceStatusToUi(selectedInvoice.status) !== 'paid' &&
-                invoiceStatusToUi(selectedInvoice.status) !== 'cancelled' && (
-                  <Button
-                    onClick={() => void handlePayment(selectedInvoice.id)}
-                    disabled={paymentLoading === selectedInvoice.id}
-                  >
-                    {paymentLoading === selectedInvoice.id ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <CreditCard className="h-4 w-4 mr-2" />
-                    )}
-                    Pay Now
-                  </Button>
-                )}
+              {canUploadProof(selectedInvoice) && (
+                <Button
+                  className="gold-gradient text-primary-900"
+                  onClick={() => {
+                    setSelectedInvoice(null)
+                    setUploadTarget(selectedInvoice)
+                  }}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Proof
+                </Button>
+              )}
               <Button variant="ghost" onClick={() => setSelectedInvoice(null)}>
                 Close
               </Button>
@@ -537,6 +748,16 @@ export default function InvoicesPage() {
           </DialogContent>
         )}
       </Dialog>
+
+      {/* Upload proof dialog */}
+      {uploadTarget && (
+        <UploadProofDialog
+          invoice={uploadTarget}
+          open={!!uploadTarget}
+          onClose={() => setUploadTarget(null)}
+          onUploaded={() => void load()}
+        />
+      )}
     </motion.div>
   )
 }

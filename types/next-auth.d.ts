@@ -7,8 +7,12 @@ declare module "next-auth" {
       email: string
       name: string
       image?: string
-      company?: string
       phone?: string
+      role: string
+      companyId: string | null
+      companyName: string | null
+      companyRole: string | null
+      jobTitle: string | null
     }
   }
 
@@ -16,15 +20,23 @@ declare module "next-auth" {
     id: string
     email: string
     name: string | null
-    company: string | null
     phone?: string | null
+    role: string
+    companyId?: string | null
+    companyName?: string | null
+    companyRole?: string | null
+    jobTitle?: string | null
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
-    company?: string
     name?: string
     phone?: string
+    role?: string
+    companyId?: string
+    companyName?: string
+    companyRole?: string
+    jobTitle?: string
   }
 }

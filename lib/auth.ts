@@ -19,7 +19,14 @@ export const authOptions: NextAuthOptions = {
         }
 
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email }
+          where: { email: credentials.email },
+          include: {
+            companyUsers: {
+              where: { isActive: true },
+              include: { company: { select: { id: true, name: true, isActive: true } } },
+              take: 1
+            }
+          }
         })
 
         if (!user || !user.password) {
@@ -32,12 +39,18 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
+        const companyUser = user.companyUsers[0] ?? null
+
         return {
           id: user.id,
           email: user.email,
           name: user.name || '',
-          company: user.company || '',
-          phone: user.phone || ''
+          phone: user.phone || '',
+          role: user.role,
+          companyId: companyUser?.companyId ?? null,
+          companyName: companyUser?.company?.name ?? null,
+          companyRole: companyUser?.role ?? null,
+          jobTitle: companyUser?.jobTitle ?? null,
         }
       }
     })
@@ -49,28 +62,41 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user, trigger, session }) {
       if (user) {
-        token.company = user.company || undefined
-        token.name = user.name || undefined
+        token.role = user.role
         token.phone = user.phone || undefined
+        token.companyId = user.companyId ?? undefined
+        token.companyName = user.companyName ?? undefined
+        token.companyRole = user.companyRole ?? undefined
+        token.jobTitle = user.jobTitle ?? undefined
       }
       if (trigger === 'update' && session) {
         const s = session as {
           name?: string
-          company?: string | null
           phone?: string | null
+          companyId?: string | null
+          companyName?: string | null
+          companyRole?: string | null
+          jobTitle?: string | null
         }
         if (s.name !== undefined) token.name = s.name
-        if (s.company !== undefined) token.company = s.company ?? undefined
         if (s.phone !== undefined) token.phone = s.phone ?? undefined
+        if (s.companyId !== undefined) token.companyId = s.companyId ?? undefined
+        if (s.companyName !== undefined) token.companyName = s.companyName ?? undefined
+        if (s.companyRole !== undefined) token.companyRole = s.companyRole ?? undefined
+        if (s.jobTitle !== undefined) token.jobTitle = s.jobTitle ?? undefined
       }
       return token
     },
     async session({ session, token }) {
       if (token) {
         session.user.id = token.sub!
-        session.user.company = (token.company as string) || ''
         session.user.name = (token.name as string) || session.user.name || ''
         session.user.phone = (token.phone as string) || ''
+        session.user.role = (token.role as string) || 'CLIENT'
+        session.user.companyId = (token.companyId as string) || null
+        session.user.companyName = (token.companyName as string) || null
+        session.user.companyRole = (token.companyRole as string) || null
+        session.user.jobTitle = (token.jobTitle as string) || null
       }
       return session
     }
