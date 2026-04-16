@@ -30,7 +30,7 @@ export default async function ProfilePage() {
   return (
     <div className="space-y-8 max-w-2xl">
       <div>
-        <h1 className="text-3xl font-bold text-primary-700">Profile & Settings</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Profile & Settings</h1>
         <p className="text-muted-foreground mt-1">Manage your account details and password.</p>
       </div>
 
@@ -38,7 +38,7 @@ export default async function ProfilePage() {
         <CardHeader>
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16">
-              <AvatarFallback className="gold-gradient text-primary-900 text-xl font-bold">
+              <AvatarFallback className="bg-indigo-600 text-white text-xl font-bold">
                 {name?.charAt(0) ?? 'U'}
               </AvatarFallback>
             </Avatar>

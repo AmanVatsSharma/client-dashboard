@@ -167,8 +167,8 @@ export default function DashboardPage() {
       value: String(activeServicesCount),
       change: `${services.length} total`,
       icon: Package,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-100'
+      color: 'text-indigo-600',
+      bgColor: 'bg-indigo-50'
     },
     {
       title: 'Total Spent',
@@ -176,15 +176,15 @@ export default function DashboardPage() {
       change: 'All paid invoices',
       icon: Receipt,
       color: 'text-green-600',
-      bgColor: 'bg-green-100'
+      bgColor: 'bg-green-50'
     },
     {
       title: 'Open Tickets',
       value: String(openTicketsCount),
       change: urgentTickets ? `${urgentTickets} need attention` : 'All clear',
       icon: HelpCircle,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-100'
+      color: 'text-amber-600',
+      bgColor: 'bg-amber-50'
     },
     {
       title: 'Paid This Month',
@@ -192,7 +192,7 @@ export default function DashboardPage() {
       change: 'Recorded payments',
       icon: TrendingUp,
       color: 'text-purple-600',
-      bgColor: 'bg-purple-100'
+      bgColor: 'bg-purple-50'
     }
   ]
 
@@ -223,11 +223,11 @@ export default function DashboardPage() {
       <motion.div variants={itemVariants}>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-primary-700">Welcome back, {session?.user?.name}!</h1>
+            <h1 className="text-2xl font-bold text-slate-900">Welcome back, {session?.user?.name}!</h1>
             <p className="text-muted-foreground mt-1">Here&apos;s what&apos;s happening with your services today.</p>
           </div>
           <Avatar className="h-16 w-16">
-            <AvatarFallback className="gold-gradient text-primary-900 text-xl font-bold">
+            <AvatarFallback className="bg-indigo-600 text-white text-xl font-bold">
               {session?.user?.name?.charAt(0) || 'U'}
             </AvatarFallback>
           </Avatar>
@@ -285,10 +285,10 @@ export default function DashboardPage() {
                           >
                             <div className="flex items-center space-x-4">
                               <div
-                                className={`p-2 rounded-lg ${uiStatus === 'active' ? 'bg-green-100' : 'bg-blue-100'}`}
+                                className={`p-2 rounded-lg ${uiStatus === 'active' ? 'bg-green-50' : 'bg-indigo-50'}`}
                               >
                                 <Package
-                                  className={`h-4 w-4 ${uiStatus === 'active' ? 'text-green-600' : 'text-blue-600'}`}
+                                  className={`h-4 w-4 ${uiStatus === 'active' ? 'text-green-600' : 'text-indigo-600'}`}
                                 />
                               </div>
                               <div>
@@ -385,12 +385,12 @@ export default function DashboardPage() {
                         <div key={activity.id} className="flex space-x-3">
                           <div className="flex-shrink-0">
                             {activity.action.includes('Invoice') || activity.action.includes('Payment') ? (
-                              <div className="p-1 bg-green-100 rounded-full">
+                              <div className="p-1 bg-green-50 rounded-full">
                                 <CheckCircle className="h-3 w-3 text-green-600" />
                               </div>
                             ) : activity.action.includes('Ticket') ? (
-                              <div className="p-1 bg-blue-100 rounded-full">
-                                <HelpCircle className="h-3 w-3 text-blue-600" />
+                              <div className="p-1 bg-indigo-50 rounded-full">
+                                <HelpCircle className="h-3 w-3 text-indigo-600" />
                               </div>
                             ) : (
                               <div className="p-1 bg-muted rounded-full">
@@ -423,31 +423,20 @@ export default function DashboardPage() {
                 <CardDescription>Common tasks and shortcuts</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4 md:grid-cols-4">
-                  <Button asChild variant="outline" className="h-20 flex-col space-y-2">
-                    <Link href="/dashboard/support">
-                      <HelpCircle className="h-6 w-6" />
-                      <span>Create Ticket</span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: 'Create Ticket', href: '/dashboard/support', icon: HelpCircle, color: 'bg-amber-50 text-amber-700 hover:bg-amber-100' },
+                    { label: 'View Invoices', href: '/dashboard/invoices', icon: Receipt, color: 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100' },
+                    { label: 'Manage Services', href: '/dashboard/services', icon: Package, color: 'bg-purple-50 text-purple-700 hover:bg-purple-100' },
+                    { label: 'Update Profile', href: '/dashboard/profile', icon: AlertCircle, color: 'bg-slate-100 text-slate-700 hover:bg-slate-200' },
+                  ].map((action) => (
+                    <Link key={action.label} href={action.href}>
+                      <div className={`flex flex-col items-center gap-2 p-4 rounded-lg cursor-pointer transition-colors ${action.color}`}>
+                        <action.icon className="h-5 w-5" />
+                        <span className="text-xs font-medium text-center">{action.label}</span>
+                      </div>
                     </Link>
-                  </Button>
-                  <Button asChild variant="outline" className="h-20 flex-col space-y-2">
-                    <Link href="/dashboard/invoices">
-                      <Receipt className="h-6 w-6" />
-                      <span>View Invoices</span>
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline" className="h-20 flex-col space-y-2">
-                    <Link href="/dashboard/services">
-                      <Package className="h-6 w-6" />
-                      <span>Manage Services</span>
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline" className="h-20 flex-col space-y-2">
-                    <Link href="/dashboard/profile">
-                      <AlertCircle className="h-6 w-6" />
-                      <span>Update Profile</span>
-                    </Link>
-                  </Button>
+                  ))}
                 </div>
               </CardContent>
             </Card>

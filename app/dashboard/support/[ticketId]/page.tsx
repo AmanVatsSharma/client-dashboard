@@ -235,7 +235,7 @@ export default function TicketDetailPage() {
             Back to Tickets
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-primary-700">{ticket.title}</h1>
+            <h1 className="text-2xl font-bold text-slate-900">{ticket.title}</h1>
             <p className="text-muted-foreground">Ticket #{ticket.id.slice(0, 8)}…</p>
           </div>
         </div>
@@ -305,7 +305,7 @@ export default function TicketDetailPage() {
                     <Avatar className="h-8 w-8">
                       <AvatarFallback
                         className={
-                          message.isAdmin ? 'bg-blue-100 text-blue-600' : 'gold-gradient text-primary-900'
+                          message.isAdmin ? 'bg-blue-100 text-blue-600' : 'bg-indigo-100 text-indigo-600'
                         }
                       >
                         {message.isAdmin ? <UserCheck className="h-4 w-4" /> : <User className="h-4 w-4" />}

@@ -267,7 +267,7 @@ function UploadProofDialog({
 
         <DialogFooter>
           <Button variant="ghost" onClick={handleClose} disabled={uploading}>Cancel</Button>
-          <Button onClick={upload} disabled={!file || uploading} className="gold-gradient text-primary-900">
+          <Button onClick={upload} disabled={!file || uploading}>
             {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
             Upload Proof
           </Button>
@@ -416,7 +416,7 @@ export default function InvoicesPage() {
     >
       <motion.div variants={itemVariants} className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-primary-700">Invoices & Payments</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Invoices & Payments</h1>
           <p className="text-muted-foreground">Track your billing and payment history</p>
         </div>
         <Link href="/dashboard/payments">
@@ -547,7 +547,7 @@ export default function InvoicesPage() {
                                   <Download className="h-3.5 w-3.5 mr-1" />PDF
                                 </Button>
                                 {canUploadProof(invoice) && (
-                                  <Button size="sm" className="gold-gradient text-primary-900" onClick={() => setUploadTarget(invoice)}>
+                                  <Button size="sm" onClick={() => setUploadTarget(invoice)}>
                                     <Upload className="h-3.5 w-3.5 mr-1" />Upload Proof
                                   </Button>
                                 )}
@@ -619,7 +619,6 @@ export default function InvoicesPage() {
                                     {canUploadProof(invoice) && (
                                       <Button
                                         size="sm"
-                                        className="gold-gradient text-primary-900"
                                         onClick={() => setUploadTarget(invoice)}
                                       >
                                         <Upload className="h-4 w-4 mr-1" />
@@ -731,7 +730,6 @@ export default function InvoicesPage() {
               </Button>
               {canUploadProof(selectedInvoice) && (
                 <Button
-                  className="gold-gradient text-primary-900"
                   onClick={() => {
                     setSelectedInvoice(null)
                     setUploadTarget(selectedInvoice)

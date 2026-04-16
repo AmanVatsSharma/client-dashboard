@@ -135,10 +135,10 @@ export default function ServicesPage() {
     >
       <motion.div variants={itemVariants} className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-primary-700">Services</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Services</h1>
           <p className="text-muted-foreground">Manage all your services and subscriptions</p>
         </div>
-        <Button className="gold-gradient text-primary-900" type="button">
+        <Button type="button">
           <Package className="mr-2 h-4 w-4" />
           Request New Service
         </Button>
@@ -226,7 +226,7 @@ export default function ServicesPage() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                           <div className="flex justify-between items-center">
-                            <span className="text-2xl font-bold gradient-text">{formatCurrency(service.price)}</span>
+                            <span className="text-2xl font-bold text-slate-900">{formatCurrency(service.price)}</span>
                             {uiType === 'subscription' && (
                               <span className="text-sm text-muted-foreground">/month</span>
                             )}
@@ -305,7 +305,7 @@ export default function ServicesPage() {
                               </div>
                             </div>
                             <div className="text-right space-y-2">
-                              <p className="font-bold text-lg gradient-text">
+                              <p className="font-bold text-lg text-slate-900">
                                 {formatCurrency(service.price)}
                                 {uiType === 'subscription' && <span className="text-sm">/mo</span>}
                               </p>

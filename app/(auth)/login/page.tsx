@@ -47,7 +47,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-gold-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -70,7 +70,7 @@ export default function LoginPage() {
               />
             </motion.div>
             <div className="space-y-2">
-              <CardTitle className="text-2xl font-bold text-primary-700">Welcome Back</CardTitle>
+              <CardTitle className="text-2xl font-bold text-slate-900">Welcome Back</CardTitle>
               <CardDescription className="text-muted-foreground">
                 Sign in to access your dashboard
               </CardDescription>
@@ -135,7 +135,7 @@ export default function LoginPage() {
             <CardFooter className="flex flex-col space-y-4">
               <Button
                 type="submit"
-                className="w-full h-11 gold-gradient text-primary-900 font-semibold hover:opacity-90 transition-opacity"
+                className="w-full h-11 font-semibold"
                 disabled={isLoading}
               >
                 {isLoading ? (

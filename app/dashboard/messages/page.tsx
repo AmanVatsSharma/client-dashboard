@@ -136,7 +136,7 @@ export default function MessagesPage() {
         />
         <div className="flex justify-between items-center">
           <span className="text-xs text-slate-400">Ctrl+Enter to send</span>
-          <Button onClick={sendMessage} disabled={sending || !text.trim() || !selectedAdminId} className="gold-gradient text-primary-900">
+          <Button onClick={sendMessage} disabled={sending || !text.trim() || !selectedAdminId}>
             {sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
             Send Message
           </Button>

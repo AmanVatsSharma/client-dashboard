@@ -20,7 +20,7 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-secondary">
+    <div className="min-h-screen bg-slate-50">
       <DashboardSidebar />
       <div className="lg:pl-72">
         <DashboardHeader />

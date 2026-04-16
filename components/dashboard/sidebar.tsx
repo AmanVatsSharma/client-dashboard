@@ -85,7 +85,7 @@ export function DashboardSidebar({ className }: SidebarProps) {
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="flex items-center px-6 py-6">
+      <div className="flex items-center px-6 py-6 border-b border-indigo-800">
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -100,18 +100,18 @@ export function DashboardSidebar({ className }: SidebarProps) {
             className="h-10 w-auto"
             priority
           />
-          <span className="text-2xl font-bold text-primary-700">IT & Dev</span>
+          <span className="text-2xl font-bold text-white">IT & Dev</span>
         </motion.div>
       </div>
 
       {/* Company context */}
       {session?.user?.companyName && (
-        <div className="mx-3 mb-3 px-3 py-2 rounded-lg bg-primary-50 border border-primary-100 flex items-center gap-2">
-          <Building2 className="h-4 w-4 text-primary-600 shrink-0" />
+        <div className="mx-3 mb-3 px-3 py-2 rounded-lg bg-indigo-800/50 border border-indigo-700 flex items-center gap-2">
+          <Building2 className="h-4 w-4 text-indigo-300 shrink-0" />
           <div className="min-w-0">
-            <p className="text-xs font-semibold text-primary-700 truncate">{session.user.companyName}</p>
+            <p className="text-xs font-semibold text-white truncate">{session.user.companyName}</p>
             {session.user.companyRole && (
-              <p className="text-[10px] text-primary-500 capitalize">{session.user.companyRole.toLowerCase()}</p>
+              <p className="text-[10px] text-indigo-300 capitalize">{session.user.companyRole.toLowerCase()}</p>
             )}
           </div>
         </div>
@@ -135,28 +135,28 @@ export function DashboardSidebar({ className }: SidebarProps) {
                   className={cn(
                     'flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group',
                     isActive
-                      ? 'gold-gradient text-primary-900 shadow-lg'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-primary-700'
+                      ? 'bg-indigo-500 text-white shadow-sm'
+                      : 'text-indigo-200 hover:bg-indigo-700 hover:text-white'
                   )}
                 >
                   <item.icon
                     className={cn(
                       'mr-3 h-4 w-4 transition-transform duration-200',
                       isActive
-                        ? 'text-primary-900'
-                        : 'text-gray-400 group-hover:text-primary-600',
+                        ? 'text-white'
+                        : 'text-indigo-400 group-hover:text-white',
                       'group-hover:scale-110'
                     )}
                   />
                   <span className="flex-1">{item.name}</span>
                   {badgeCount > 0 && !isActive && (
-                    <Badge className="ml-auto h-5 min-w-5 px-1.5 text-[10px] bg-primary-600 text-white">
+                    <Badge className="ml-auto h-5 min-w-5 px-1.5 text-[10px] bg-white text-indigo-900">
                       {badgeCount > 99 ? '99+' : badgeCount}
                     </Badge>
                   )}
                   {isActive && (
                     <motion.div
-                      className="ml-auto w-2 h-2 bg-primary-900 rounded-full"
+                      className="ml-auto w-2 h-2 bg-white rounded-full"
                       layoutId="activeIndicator"
                       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                     />
@@ -169,14 +169,14 @@ export function DashboardSidebar({ className }: SidebarProps) {
       </ScrollArea>
 
       {/* User info + Logout */}
-      <div className="px-3 py-4 border-t border-gray-200">
+      <div className="px-3 py-4 border-t border-indigo-800">
         {session?.user?.name && (
-          <p className="px-3 mb-2 text-xs text-gray-500 truncate">{session.user.name}</p>
+          <p className="px-3 mb-2 text-xs text-indigo-300 truncate">{session.user.name}</p>
         )}
         <Button
           onClick={() => signOut()}
           variant="ghost"
-          className="w-full justify-start text-gray-600 hover:text-red-600 hover:bg-red-50"
+          className="w-full justify-start text-indigo-300 hover:text-white hover:bg-indigo-700"
         >
           <LogOut className="mr-3 h-4 w-4" />
           Sign Out
@@ -189,7 +189,7 @@ export function DashboardSidebar({ className }: SidebarProps) {
     <>
       {/* Desktop Sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
-        <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-card border-r border-border shadow-xl">
+        <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-indigo-900">
           <SidebarContent />
         </div>
       </div>
@@ -205,7 +205,7 @@ export function DashboardSidebar({ className }: SidebarProps) {
             <Menu className="h-6 w-6" />
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="p-0 w-72">
+        <SheetContent side="left" className="p-0 w-72 bg-indigo-900 border-indigo-800">
           <SidebarContent />
         </SheetContent>
       </Sheet>

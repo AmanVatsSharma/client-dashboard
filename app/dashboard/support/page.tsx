@@ -157,12 +157,12 @@ export default function SupportTicketsPage() {
     >
       <motion.div variants={itemVariants} className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-primary-700">Support Tickets</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Support Tickets</h1>
           <p className="text-muted-foreground">Open a ticket or follow up on existing requests</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="gold-gradient text-primary-900">
+            <Button>
               <Plus className="mr-2 h-4 w-4" />
               New ticket
             </Button>
@@ -281,7 +281,7 @@ export default function SupportTicketsPage() {
                       >
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div>
-                            <p className="font-medium text-primary-800">{t.title}</p>
+                            <p className="font-medium text-slate-800">{t.title}</p>
                             <p className="text-sm text-muted-foreground mt-1">
                               {truncateText(t.description, 120)}
                             </p>
