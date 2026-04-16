@@ -45,6 +45,7 @@ type ServiceApi = {
   type: ServiceType
   status: ServiceStatus
   price: number
+  isVariablePrice: boolean
   nextBilling: string | null
   createdAt: string
   _count: { invoices: number; tickets: number }
@@ -226,9 +227,19 @@ export default function ServicesPage() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                           <div className="flex justify-between items-center">
-                            <span className="text-2xl font-bold text-slate-900">{formatCurrency(service.price)}</span>
-                            {uiType === 'subscription' && (
+                            {service.isVariablePrice ? (
+                              <div className="flex items-baseline gap-1.5">
+                                <span className="text-lg font-semibold text-slate-900">Variable</span>
+                                {service.price > 0 && <span className="text-sm text-muted-foreground">~{formatCurrency(service.price)}</span>}
+                              </div>
+                            ) : (
+                              <span className="text-2xl font-bold text-slate-900">{formatCurrency(service.price)}</span>
+                            )}
+                            {uiType === 'subscription' && !service.isVariablePrice && (
                               <span className="text-sm text-muted-foreground">/month</span>
+                            )}
+                            {service.isVariablePrice && (
+                              <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-200">Per billing</Badge>
                             )}
                           </div>
 
@@ -306,8 +317,10 @@ export default function ServicesPage() {
                             </div>
                             <div className="text-right space-y-2">
                               <p className="font-bold text-lg text-slate-900">
-                                {formatCurrency(service.price)}
-                                {uiType === 'subscription' && <span className="text-sm">/mo</span>}
+                                {service.isVariablePrice
+                                  ? (service.price > 0 ? `~${formatCurrency(service.price)}` : 'Variable')
+                                  : formatCurrency(service.price)}
+                                {uiType === 'subscription' && !service.isVariablePrice && <span className="text-sm">/mo</span>}
                               </p>
                               {nextBilling && (
                                 <p className="text-xs text-muted-foreground">Next: {formatDate(nextBilling)}</p>

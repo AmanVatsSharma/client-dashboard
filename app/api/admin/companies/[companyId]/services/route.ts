@@ -8,7 +8,8 @@ const createServiceSchema = z.object({
   description: z.string().optional(),
   type: z.enum(['ONE_TIME', 'SUBSCRIPTION']),
   status: z.enum(['ACTIVE', 'INACTIVE', 'PENDING', 'COMPLETED']),
-  price: z.number().positive(),
+  price: z.number().min(0),
+  isVariablePrice: z.boolean().optional().default(false),
   nextBilling: z.string().optional().nullable(),
 })
 

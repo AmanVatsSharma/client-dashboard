@@ -25,7 +25,7 @@ type CompanyUser = {
   id: string; userId: string; role: string; jobTitle?: string; isActive: boolean
   user: { id: string; name?: string; email: string; phone?: string }
 }
-type Service = { id: string; name: string; status: string; type: string; price: number }
+type Service = { id: string; name: string; status: string; type: string; price: number; isVariablePrice: boolean }
 type Invoice = {
   id: string; invoiceNumber: string; amount: number; status: string; dueDate: string
   service?: { name: string }
@@ -68,7 +68,7 @@ export default function CompanyDetailPage() {
   const [saving, setSaving] = useState(false)
 
   const [userForm, setUserForm] = useState({ name: '', email: '', password: '', phone: '', role: 'MEMBER', jobTitle: '' })
-  const [serviceForm, setServiceForm] = useState({ name: '', description: '', type: 'SUBSCRIPTION', status: 'ACTIVE', price: '', nextBilling: '' })
+  const [serviceForm, setServiceForm] = useState({ name: '', description: '', type: 'SUBSCRIPTION', status: 'ACTIVE', price: '', isVariablePrice: false, nextBilling: '' })
   const [invoiceForm, setInvoiceForm] = useState({ amount: '', description: '', dueDate: '', status: 'PENDING', serviceId: '' })
 
   useEffect(() => { fetchCompany() }, [companyId])
@@ -103,12 +103,12 @@ export default function CompanyDetailPage() {
     try {
       const res = await fetch(`/api/admin/companies/${companyId}/services`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...serviceForm, price: parseFloat(serviceForm.price) }),
+        body: JSON.stringify({ ...serviceForm, price: parseFloat(serviceForm.price) || 0, isVariablePrice: serviceForm.isVariablePrice }),
       })
       if (res.ok) {
         toast({ title: 'Service created' })
         setAddServiceOpen(false)
-        setServiceForm({ name: '', description: '', type: 'SUBSCRIPTION', status: 'ACTIVE', price: '', nextBilling: '' })
+        setServiceForm({ name: '', description: '', type: 'SUBSCRIPTION', status: 'ACTIVE', price: '', isVariablePrice: false, nextBilling: '' })
         fetchCompany()
       } else {
         const d = await res.json()
@@ -276,7 +276,17 @@ export default function CompanyDetailPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-1"><Label>Price (₹) *</Label><Input type="number" required min="0" step="0.01" value={serviceForm.price} onChange={e => setServiceForm(p => ({ ...p, price: e.target.value }))} placeholder="9999" /></div>
+                    <div className="col-span-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={serviceForm.isVariablePrice} onChange={e => setServiceForm(p => ({ ...p, isVariablePrice: e.target.checked }))} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                        <span className="text-sm text-slate-700">Variable pricing (amount changes each billing cycle)</span>
+                      </label>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>{serviceForm.isVariablePrice ? 'Base Price (₹)' : 'Price (₹) *'}</Label>
+                      <Input type="number" required={!serviceForm.isVariablePrice} min="0" step="0.01" value={serviceForm.price} onChange={e => setServiceForm(p => ({ ...p, price: e.target.value }))} placeholder={serviceForm.isVariablePrice ? '0 if unknown' : '9999'} />
+                      {serviceForm.isVariablePrice && <p className="text-[11px] text-slate-400">Used as default suggestion when creating invoices</p>}
+                    </div>
                     <div className="space-y-1"><Label>Next Billing</Label><Input type="date" value={serviceForm.nextBilling} onChange={e => setServiceForm(p => ({ ...p, nextBilling: e.target.value }))} /></div>
                   </div>
                   <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white" disabled={saving}>
@@ -295,10 +305,13 @@ export default function CompanyDetailPage() {
                 <CardContent className="p-4 flex items-center gap-3">
                   <div className="flex-1">
                     <p className="font-medium text-slate-800">{s.name}</p>
-                    <p className="text-sm text-slate-500">₹{s.price.toLocaleString()}</p>
+                    <p className="text-sm text-slate-500">
+                      {s.isVariablePrice ? (s.price > 0 ? `~₹${s.price.toLocaleString()} (variable)` : 'Variable pricing') : `₹${s.price.toLocaleString()}`}
+                    </p>
                   </div>
                   <Badge className={`text-xs ${statusColors[s.status]}`}>{s.status}</Badge>
                   <Badge variant="outline" className="text-xs">{s.type.replace('_', '-')}</Badge>
+                  {s.isVariablePrice && <Badge className="text-[10px] bg-amber-50 text-amber-700">Variable</Badge>}
                 </CardContent>
               </Card>
             ))}
@@ -316,19 +329,33 @@ export default function CompanyDetailPage() {
                 <DialogHeader><DialogTitle>Create Invoice for {company.name}</DialogTitle></DialogHeader>
                 <form onSubmit={addInvoice} className="space-y-3 mt-2">
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1"><Label>Amount (₹) *</Label><Input type="number" required min="0" step="0.01" value={invoiceForm.amount} onChange={e => setInvoiceForm(p => ({ ...p, amount: e.target.value }))} placeholder="9999" /></div>
-                    <div className="space-y-1"><Label>Due Date *</Label><Input type="date" required value={invoiceForm.dueDate} onChange={e => setInvoiceForm(p => ({ ...p, dueDate: e.target.value }))} /></div>
-                    <div className="col-span-2 space-y-1"><Label>Description</Label><Input value={invoiceForm.description} onChange={e => setInvoiceForm(p => ({ ...p, description: e.target.value }))} placeholder="Monthly retainer..." /></div>
                     <div className="col-span-2 space-y-1">
                       <Label>Service (optional)</Label>
-                      <Select value={invoiceForm.serviceId} onValueChange={v => setInvoiceForm(p => ({ ...p, serviceId: v }))}>
+                      <Select value={invoiceForm.serviceId} onValueChange={v => {
+                        const svc = company.services.find(s => s.id === v)
+                        setInvoiceForm(p => ({
+                          ...p,
+                          serviceId: v,
+                          amount: svc && svc.price > 0 ? String(svc.price) : p.amount,
+                        }))
+                      }}>
                         <SelectTrigger><SelectValue placeholder="No service" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="">No service</SelectItem>
-                          {company.services.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                          {company.services.map(s => (
+                            <SelectItem key={s.id} value={s.id}>
+                              {s.name}{s.isVariablePrice ? ' (variable)' : ` — ₹${s.price.toLocaleString()}`}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
+                      {invoiceForm.serviceId && company.services.find(s => s.id === invoiceForm.serviceId)?.isVariablePrice && (
+                        <p className="text-[11px] text-amber-600">This service has variable pricing — enter this month&apos;s amount below</p>
+                      )}
                     </div>
+                    <div className="space-y-1"><Label>Amount (₹) *</Label><Input type="number" required min="0" step="0.01" value={invoiceForm.amount} onChange={e => setInvoiceForm(p => ({ ...p, amount: e.target.value }))} placeholder="Enter amount" /></div>
+                    <div className="space-y-1"><Label>Due Date *</Label><Input type="date" required value={invoiceForm.dueDate} onChange={e => setInvoiceForm(p => ({ ...p, dueDate: e.target.value }))} /></div>
+                    <div className="col-span-2 space-y-1"><Label>Description</Label><Input value={invoiceForm.description} onChange={e => setInvoiceForm(p => ({ ...p, description: e.target.value }))} placeholder="Monthly retainer..." /></div>
                   </div>
                   <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white" disabled={saving}>
                     {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating...</> : 'Create Invoice'}

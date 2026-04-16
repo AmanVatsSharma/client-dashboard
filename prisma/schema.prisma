@@ -187,17 +187,18 @@ model CompanyUser {
 // ── Services ──────────────────────────────────────────────────────────────────
 
 model Service {
-  id          String        @id @default(cuid())
-  name        String
-  description String?
-  type        ServiceType
-  status      ServiceStatus
-  price       Float
-  companyId   String
-  createdById String?
-  nextBilling DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id              String        @id @default(cuid())
+  name            String
+  description     String?
+  type            ServiceType
+  status          ServiceStatus
+  price           Float
+  isVariablePrice Boolean       @default(false)
+  companyId       String
+  createdById     String?
+  nextBilling     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   company   Company  @relation(fields: [companyId], references: [id])
   createdBy User?    @relation("ServiceCreatedBy", fields: [createdById], references: [id])
