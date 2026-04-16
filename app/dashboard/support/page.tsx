@@ -277,7 +277,7 @@ export default function SupportTicketsPage() {
                     >
                       <Link
                         href={`/dashboard/support/${t.id}`}
-                        className="block rounded-lg border p-4 transition-colors hover:bg-muted/50"
+                        className="block rounded-lg p-4 transition-colors hover:bg-slate-50"
                       >
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div>

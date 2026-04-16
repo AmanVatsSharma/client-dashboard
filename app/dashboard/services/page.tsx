@@ -279,7 +279,7 @@ export default function ServicesPage() {
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: index * 0.03 }}
-                            className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                            className="flex items-center justify-between p-4 rounded-lg hover:bg-slate-50 transition-colors"
                           >
                             <div className="flex items-center space-x-4">
                               <div className="flex items-center space-x-2">

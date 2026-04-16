@@ -529,7 +529,7 @@ export default function InvoicesPage() {
                       {filteredInvoices.map(invoice => {
                         const ui = invoiceStatusToUi(invoice.status)
                         return (
-                          <Card key={invoice.id} className="border border-slate-200">
+                          <Card key={invoice.id}>
                             <CardContent className="p-4 space-y-2">
                               <div className="flex items-center justify-between">
                                 <p className="font-medium text-sm">{invoice.invoiceNumber}</p>

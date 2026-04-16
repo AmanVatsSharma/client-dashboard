@@ -281,7 +281,7 @@ export default function DashboardPage() {
                         return (
                           <div
                             key={service.id}
-                            className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                            className="flex items-center justify-between p-4 rounded-lg hover:bg-slate-50 transition-colors"
                           >
                             <div className="flex items-center space-x-4">
                               <div
@@ -340,7 +340,7 @@ export default function DashboardPage() {
                       upcomingPayments.map((payment, index) => (
                         <div
                           key={`${payment.service}-${index}`}
-                          className="flex items-center justify-between p-3 border rounded-lg"
+                          className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors"
                         >
                           <div>
                             <p className="font-medium text-sm">{payment.service}</p>

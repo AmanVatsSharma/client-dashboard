@@ -39,7 +39,7 @@ export default function NotesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {notes.map(note => (
-            <Card key={note.id} className="hover:shadow-md transition-shadow border-slate-200">
+            <Card key={note.id} className="transition-shadow">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <h3 className="font-semibold text-slate-800">{note.title}</h3>

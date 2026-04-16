@@ -74,7 +74,7 @@ export default function PaymentsPage() {
       </div>
 
       {/* CTA */}
-      <Card className="bg-gradient-to-r from-primary-600 to-primary-700 border-0 text-white">
+      <Card className="bg-gradient-to-r from-primary-600 to-primary-700 text-white">
         <CardContent className="p-5 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <CreditCard className="h-6 w-6 opacity-80" />
@@ -111,7 +111,7 @@ export default function PaymentsPage() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {accts.map(account => (
-                  <Card key={account.id} className="overflow-hidden border-slate-200 hover:shadow-md transition-shadow">
+                  <Card key={account.id} className="overflow-hidden transition-shadow">
                     {/* Card Header */}
                     <div className="bg-gradient-to-r from-slate-800 to-slate-700 p-4 text-white">
                       <div className="flex items-start justify-between">
@@ -142,7 +142,7 @@ export default function PaymentsPage() {
       )}
 
       {/* Instructions */}
-      <Card className="bg-amber-50 border-amber-200">
+      <Card className="bg-amber-50 !shadow-none border border-amber-200">
         <CardContent className="p-4">
           <p className="text-sm font-semibold text-amber-800 mb-2">Payment Instructions</p>
           <ol className="text-sm text-amber-700 space-y-1 list-decimal list-inside">
