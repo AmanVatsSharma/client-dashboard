@@ -1,3 +1,38 @@
+/**
+ * File:        app/admin/companies/[companyId]/page.tsx
+ * Module:      Admin · Companies · Detail
+ * Purpose:     Full company detail view with tabbed sections for users, services,
+ *              invoices, tickets, and notes; supports adding records in each section
+ *              and managing service data fields via a slide-in panel.
+ *
+ * Exports:
+ *   - CompanyDetailPage() — default export, page component
+ *
+ * Depends on:
+ *   - @/components/admin/service-data-fields-panel — ServiceDataFieldsPanel sheet
+ *   - @/components/ui/*                            — UI primitives
+ *   - @/components/ui/toaster                      — toast notifications
+ *
+ * Side-effects:
+ *   - GET  /api/admin/companies/${companyId}                 — load company on mount
+ *   - POST /api/admin/companies/${companyId}/users           — add user
+ *   - POST /api/admin/companies/${companyId}/services        — add service
+ *   - POST /api/admin/companies/${companyId}/invoices        — add invoice
+ *   - PATCH /api/admin/companies/${companyId}/users/${userId} — toggle user active
+ *
+ * Key invariants:
+ *   - companyId is taken from URL params via useParams; never null when page renders.
+ *   - dataFieldsServiceId is set when the Data Fields panel opens; cleared on close.
+ *   - ServiceDataFieldsPanel is only rendered when dataFieldsServiceId is non-null.
+ *
+ * Read order:
+ *   1. Type definitions (CompanyUser, Service, Invoice, TicketType, Note, Company)
+ *   2. CompanyDetailPage — state, effects, handlers, JSX
+ *
+ * Author:      AmanVatsSharma
+ * Last-updated: 2026-04-19
+ */
+
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -16,10 +51,11 @@ import {
 } from '@/components/ui/select'
 import {
   Building2, Users, Receipt, Ticket, StickyNote, Plus, Loader2,
-  Upload, CheckCircle2, XCircle, Clock, ChevronRight,
+  Upload, CheckCircle2, XCircle, Clock, ChevronRight, Database,
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from '@/components/ui/toaster'
+import { ServiceDataFieldsPanel } from '@/components/admin/service-data-fields-panel'
 
 type CompanyUser = {
   id: string; userId: string; role: string; jobTitle?: string; isActive: boolean
@@ -66,6 +102,8 @@ export default function CompanyDetailPage() {
   const [addServiceOpen, setAddServiceOpen] = useState(false)
   const [addInvoiceOpen, setAddInvoiceOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [dataFieldsServiceId, setDataFieldsServiceId] = useState<string | null>(null)
+  const [dataFieldsOpen, setDataFieldsOpen] = useState(false)
 
   const [userForm, setUserForm] = useState({ name: '', email: '', password: '', phone: '', role: 'MEMBER', jobTitle: '' })
   const [serviceForm, setServiceForm] = useState({ name: '', description: '', type: 'SUBSCRIPTION', status: 'ACTIVE', price: '', isVariablePrice: false, nextBilling: '' })
@@ -312,6 +350,15 @@ export default function CompanyDetailPage() {
                   <Badge className={`text-xs ${statusColors[s.status]}`}>{s.status}</Badge>
                   <Badge variant="outline" className="text-xs">{s.type.replace('_', '-')}</Badge>
                   {s.isVariablePrice && <Badge className="text-[10px] bg-amber-50 text-amber-700">Variable</Badge>}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs gap-1"
+                    onClick={() => { setDataFieldsServiceId(s.id); setDataFieldsOpen(true) }}
+                  >
+                    <Database className="h-3 w-3" />
+                    Data Fields
+                  </Button>
                 </CardContent>
               </Card>
             ))}
@@ -449,6 +496,19 @@ export default function CompanyDetailPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {dataFieldsServiceId && (
+        <ServiceDataFieldsPanel
+          serviceId={dataFieldsServiceId}
+          serviceName={company.services.find(s => s.id === dataFieldsServiceId)?.name ?? ''}
+          companyId={companyId}
+          open={dataFieldsOpen}
+          onOpenChange={(open) => {
+            setDataFieldsOpen(open)
+            if (!open) setDataFieldsServiceId(null)
+          }}
+        />
+      )}
     </div>
   )
 }
