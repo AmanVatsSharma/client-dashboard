@@ -15,7 +15,7 @@
  *
  * Key invariants:
  *   - The service must exist AND service.companyId must match the session companyId; any mismatch returns 404 (not 403) to avoid leaking service existence.
- *   - All fields including sensitive ones are returned; masking isSensitive values is a UI concern only.
+ *   - isSensitive is a display hint only — sensitive field values are returned verbatim to all authenticated company members; masking/reveal is handled entirely in the client UI.
  *   - companyId is guaranteed non-null by requireClient() before the Prisma query runs.
  *
  * Read order:

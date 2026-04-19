@@ -8,8 +8,8 @@
  *   - profilePatchBodySchema          — validates PATCH /api/profile body (name / company / phone)
  *   - passwordChangeBodySchema        — validates POST /api/profile/password body
  *   - createIndividualSchema          — validates POST /api/admin/individuals body (new personal-client user)
- *   - createServiceDataFieldSchema    — validates POST /api/admin/services/[id]/data-fields body
- *   - updateServiceDataFieldSchema    — validates PATCH /api/admin/services/[id]/data-fields/[fid] body
+ *   - createServiceDataFieldSchema    — validates POST /api/admin/companies/[companyId]/services/[serviceId]/fields body
+ *   - updateServiceDataFieldSchema    — validates PATCH /api/admin/services/fields/[fieldId] body
  *   - updateIndividualSchema          — validates PATCH /api/admin/individuals/[userId] body (partial update; at least one field required; phone accepts null to clear)
  *
  * Depends on:
