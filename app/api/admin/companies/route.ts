@@ -1,3 +1,34 @@
+/**
+ * File:        app/api/admin/companies/route.ts
+ * Module:      Admin API · Companies
+ * Purpose:     List active non-personal companies and create new company accounts with an owner user.
+ *
+ * Exports:
+ *   - GET()                        — list all active, non-personal companies with user/invoice/ticket counts
+ *   - POST(request: NextRequest)   — create a company and its first owner user in a transaction
+ *
+ * Depends on:
+ *   - @/lib/admin-guard  — requireAdmin() enforces admin-only access
+ *   - @/lib/db           — singleton PrismaClient
+ *   - bcryptjs           — password hashing for the owner user (12 rounds)
+ *
+ * Side-effects:
+ *   - DB write (POST): creates Company, User, and CompanyUser in a transaction
+ *
+ * Key invariants:
+ *   - GET excludes isPersonal companies (those belong to individual clients, not the company list).
+ *   - GET filters to isActive:true so deleted/deactivated companies are hidden from the admin list.
+ *   - POST checks for duplicate email before starting the transaction.
+ *
+ * Read order:
+ *   1. createCompanySchema — understand the expected request body shape
+ *   2. GET                 — simple query with aggregate counts
+ *   3. POST                — validation → duplicate-check → transaction
+ *
+ * Author:      AmanVatsSharma
+ * Last-updated: 2026-04-19
+ */
+
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin-guard'
 import { prisma } from '@/lib/db'
@@ -26,7 +57,7 @@ export async function GET() {
     if (error) return error
 
     const companies = await prisma.company.findMany({
-      where: { isActive: true },
+      where: { isActive: true, isPersonal: false },
       include: {
         _count: {
           select: {
