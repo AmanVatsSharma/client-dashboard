@@ -10,7 +10,7 @@
  *   - createIndividualSchema          — validates POST /api/admin/individuals body (new personal-client user)
  *   - createServiceDataFieldSchema    — validates POST /api/admin/services/[id]/data-fields body
  *   - updateServiceDataFieldSchema    — validates PATCH /api/admin/services/[id]/data-fields/[fid] body
- *   - updateIndividualSchema          — validates PATCH /api/admin/individuals/[userId] body (partial update)
+ *   - updateIndividualSchema          — validates PATCH /api/admin/individuals/[userId] body (partial update; at least one field required; phone accepts null to clear)
  *
  * Depends on:
  *   - zod — schema validation and inference
@@ -21,6 +21,7 @@
  * Key invariants:
  *   - All schemas are pure Zod objects; no Prisma or Next.js runtime imports here.
  *   - updateServiceDataFieldSchema requires at least one field to be present.
+ *   - updateIndividualSchema requires at least one field to be present; phone accepts null to clear the value.
  *
  * Read order:
  *   1. invoicePatchBodySchema        — simplest schema, good orientation point
@@ -79,6 +80,8 @@ export const updateServiceDataFieldSchema = z.object({
 export const updateIndividualSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   email: z.string().email().optional(),
-  phone: z.string().max(32).optional(),
+  phone: z.union([z.string().max(32), z.null()]).optional(),
   isActive: z.boolean().optional()
+}).refine(data => Object.values(data).some(v => v !== undefined), {
+  message: 'At least one field is required'
 })

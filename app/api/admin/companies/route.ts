@@ -113,6 +113,15 @@ export async function POST(request: NextRequest) {
           password: hashedPassword,
           phone: ownerPhone,
           role: 'CLIENT',
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          role: true,
+          createdAt: true,
+          updatedAt: true,
         }
       })
 

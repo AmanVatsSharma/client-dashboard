@@ -20,7 +20,9 @@
  *   - A personal company always has exactly one CompanyUser with role OWNER.
  *   - isActive in the response reflects CompanyUser.isActive, not any User field.
  *   - GET returns a flat shape: {id, name, email, phone, createdAt, isActive, companyId, companyName} — no nested arrays.
+ *   - GET returns all individuals regardless of isActive status (admins need to see deactivated records to reactivate them).
  *   - POST rejects if a user with the given email already exists.
+ *   - POST response omits password hash — select excludes the password field.
  *
  * Read order:
  *   1. GET  — read path; understand the query → flatten pattern
@@ -112,6 +114,15 @@ export async function POST(request: NextRequest) {
           password: hashedPassword,
           phone,
           role: 'CLIENT',
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          role: true,
+          createdAt: true,
+          updatedAt: true,
         }
       })
 
