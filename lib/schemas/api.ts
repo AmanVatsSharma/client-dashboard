@@ -61,16 +61,16 @@ export const createIndividualSchema = z.object({
 
 export const createServiceDataFieldSchema = z.object({
   label: z.string().min(1).max(200),
-  value: z.string().max(10000),
+  value: z.string().min(1).max(10000),
   isSensitive: z.boolean().optional(),
-  order: z.number().int().optional()
+  order: z.number().int().nonnegative().optional()
 })
 
 export const updateServiceDataFieldSchema = z.object({
   label: z.string().min(1).max(200).optional(),
-  value: z.string().max(10000).optional(),
+  value: z.string().min(1).max(10000).optional(),
   isSensitive: z.boolean().optional(),
-  order: z.number().int().optional()
+  order: z.number().int().nonnegative().optional()
 }).refine(data => Object.values(data).some(v => v !== undefined), {
   message: 'At least one field is required'
 })
