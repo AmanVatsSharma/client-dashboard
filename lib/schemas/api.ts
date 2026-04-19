@@ -10,6 +10,7 @@
  *   - createIndividualSchema          — validates POST /api/admin/individuals body (new personal-client user)
  *   - createServiceDataFieldSchema    — validates POST /api/admin/services/[id]/data-fields body
  *   - updateServiceDataFieldSchema    — validates PATCH /api/admin/services/[id]/data-fields/[fid] body
+ *   - updateIndividualSchema          — validates PATCH /api/admin/individuals/[userId] body (partial update)
  *
  * Depends on:
  *   - zod — schema validation and inference
@@ -73,4 +74,11 @@ export const updateServiceDataFieldSchema = z.object({
   order: z.number().int().nonnegative().optional()
 }).refine(data => Object.values(data).some(v => v !== undefined), {
   message: 'At least one field is required'
+})
+
+export const updateIndividualSchema = z.object({
+  name: z.string().min(1).max(120).optional(),
+  email: z.string().email().optional(),
+  phone: z.string().max(32).optional(),
+  isActive: z.boolean().optional()
 })

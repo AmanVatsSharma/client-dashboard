@@ -32,6 +32,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin-guard'
 import { prisma } from '@/lib/db'
+import { updateIndividualSchema } from '@/lib/schemas/api'
 import { Prisma } from '@prisma/client'
 
 export async function PATCH(
@@ -61,12 +62,11 @@ export async function PATCH(
     }
 
     const json = await request.json()
-    const { name, email, phone, isActive } = json as {
-      name?: string
-      email?: string
-      phone?: string
-      isActive?: boolean
+    const parsed = updateIndividualSchema.safeParse(json)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid data', details: parsed.error.flatten() }, { status: 400 })
     }
+    const { name, email, phone, isActive } = parsed.data
 
     // Email collision check — allow no-op updates for the same user
     if (email !== undefined) {
