@@ -1,9 +1,29 @@
 /**
- * @file page.tsx
- * @module client-dashboard/dashboard/services
- * @description Services grid/list loaded from /api/services with search and status filter.
- * @author BharatERP
- * @created 2026-04-09
+ * File:        app/dashboard/services/page.tsx
+ * Module:      Client Dashboard · Services
+ * Purpose:     Client-facing services page; loads /api/services, provides search/status filter, and renders services in a grid or list view including per-service data fields.
+ *
+ * Exports:
+ *   - ServicesPage() — default export; page component (no props; auth enforced by middleware)
+ *
+ * Depends on:
+ *   - @/lib/service-display  — serviceStatusToUi / serviceTypeToUi label mappers
+ *   - @/lib/utils            — formatCurrency / formatDate
+ *   - @/components/dashboard/service-data-fields — ServiceDataFields per-service detail panel
+ *
+ * Side-effects:
+ *   - HTTP GET /api/services on mount
+ *
+ * Key invariants:
+ *   - All service data is scoped to the authenticated user's company by the API
+ *   - ServiceDataFields is rendered per card/row; it handles its own fetch and returns null when there are no fields
+ *
+ * Read order:
+ *   1. ServiceApi — local type: shape of /api/services response items
+ *   2. ServicesPage — top-level component: load → filter → grid/list render
+ *
+ * Author:      AmanVatsSharma
+ * Last-updated: 2026-04-19
  */
 
 'use client'
@@ -37,6 +57,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { serviceStatusToUi, serviceTypeToUi, type UiServiceStatus } from '@/lib/service-display'
+import { ServiceDataFields } from '@/components/dashboard/service-data-fields'
 
 type ServiceApi = {
   id: string
@@ -255,6 +276,8 @@ export default function ServicesPage() {
                             {service._count.tickets} open ticket{service._count.tickets !== 1 ? 's' : ''}
                           </p>
 
+                          <ServiceDataFields serviceId={service.id} />
+
                           <div className="flex gap-2 pt-4">
                             <Button size="sm" className="flex-1" type="button" variant="secondary">
                               <Download className="mr-2 h-4 w-4" />
@@ -290,50 +313,53 @@ export default function ServicesPage() {
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: index * 0.03 }}
-                            className="flex items-center justify-between p-4 rounded-lg hover:bg-slate-50 transition-colors"
+                            className="p-4 rounded-lg hover:bg-slate-50 transition-colors"
                           >
-                            <div className="flex items-center space-x-4">
-                              <div className="flex items-center space-x-2">
-                                {getStatusIcon(uiStatus)}
-                                <Badge variant={getStatusBadge(uiStatus) as 'default' | 'secondary' | 'destructive' | 'outline'} className="text-xs">
-                                  {uiStatus}
-                                </Badge>
-                              </div>
-                              <div>
-                                <h3 className="font-medium">{service.name}</h3>
-                                <p className="text-sm text-muted-foreground">{service.description ?? '—'}</p>
-                                <div className="flex items-center space-x-4 mt-1">
-                                  <Badge variant="outline" className="text-xs">
-                                    {uiType}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-4">
+                                <div className="flex items-center space-x-2">
+                                  {getStatusIcon(uiStatus)}
+                                  <Badge variant={getStatusBadge(uiStatus) as 'default' | 'secondary' | 'destructive' | 'outline'} className="text-xs">
+                                    {uiStatus}
                                   </Badge>
-                                  <span className="text-xs text-muted-foreground">
-                                    Started: {formatDate(service.createdAt)}
-                                  </span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {service._count.invoices} invoices
-                                  </span>
+                                </div>
+                                <div>
+                                  <h3 className="font-medium">{service.name}</h3>
+                                  <p className="text-sm text-muted-foreground">{service.description ?? '—'}</p>
+                                  <div className="flex items-center space-x-4 mt-1">
+                                    <Badge variant="outline" className="text-xs">
+                                      {uiType}
+                                    </Badge>
+                                    <span className="text-xs text-muted-foreground">
+                                      Started: {formatDate(service.createdAt)}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {service._count.invoices} invoices
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right space-y-2">
+                                <p className="font-bold text-lg text-slate-900">
+                                  {service.isVariablePrice
+                                    ? (service.price > 0 ? `~${formatCurrency(service.price)}` : 'Variable')
+                                    : formatCurrency(service.price)}
+                                  {uiType === 'subscription' && !service.isVariablePrice && <span className="text-sm">/mo</span>}
+                                </p>
+                                {nextBilling && (
+                                  <p className="text-xs text-muted-foreground">Next: {formatDate(nextBilling)}</p>
+                                )}
+                                <div className="flex space-x-2">
+                                  <Button size="sm" variant="outline" type="button">
+                                    View Details
+                                  </Button>
+                                  <Button size="sm" type="button">
+                                    Manage
+                                  </Button>
                                 </div>
                               </div>
                             </div>
-                            <div className="text-right space-y-2">
-                              <p className="font-bold text-lg text-slate-900">
-                                {service.isVariablePrice
-                                  ? (service.price > 0 ? `~${formatCurrency(service.price)}` : 'Variable')
-                                  : formatCurrency(service.price)}
-                                {uiType === 'subscription' && !service.isVariablePrice && <span className="text-sm">/mo</span>}
-                              </p>
-                              {nextBilling && (
-                                <p className="text-xs text-muted-foreground">Next: {formatDate(nextBilling)}</p>
-                              )}
-                              <div className="flex space-x-2">
-                                <Button size="sm" variant="outline" type="button">
-                                  View Details
-                                </Button>
-                                <Button size="sm" type="button">
-                                  Manage
-                                </Button>
-                              </div>
-                            </div>
+                            <ServiceDataFields serviceId={service.id} />
                           </motion.div>
                         )
                       })
