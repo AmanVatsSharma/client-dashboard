@@ -1,3 +1,33 @@
+/**
+ * File:        components/admin/sidebar.tsx
+ * Module:      Admin · Layout · Sidebar
+ * Purpose:     Responsive sidebar navigation for the admin panel, rendering a fixed
+ *              desktop sidebar and a Sheet-based mobile drawer with all primary nav links.
+ *
+ * Exports:
+ *   - AdminSidebar() — sidebar component; renders desktop fixed sidebar + mobile Sheet trigger
+ *
+ * Depends on:
+ *   - @/lib/utils      — cn() class merging
+ *   - @/components/ui/button        — Button
+ *   - @/components/ui/scroll-area   — ScrollArea
+ *   - @/components/ui/sheet         — Sheet, SheetContent, SheetTrigger (mobile drawer)
+ *
+ * Side-effects:
+ *   - Calls next-auth signOut on logout button click
+ *
+ * Key invariants:
+ *   - Active route detection uses startsWith so nested routes stay highlighted.
+ *   - SidebarContent is defined as an inner component to share across desktop/mobile renders.
+ *
+ * Read order:
+ *   1. navigation — route definitions
+ *   2. AdminSidebar — component with SidebarContent inner component
+ *
+ * Author:      AmanVatsSharma
+ * Last-updated: 2026-04-19
+ */
+
 'use client'
 
 import { useState } from 'react'
@@ -20,12 +50,14 @@ import {
   Menu,
   LogOut,
   ShieldCheck,
+  User,
 } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 
 const navigation = [
   { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
   { name: 'Companies', href: '/admin/companies', icon: Building2 },
+  { name: 'Individual Clients', href: '/admin/individuals', icon: User },
   { name: 'Invoices', href: '/admin/invoices', icon: Receipt },
   { name: 'Tickets', href: '/admin/tickets', icon: Ticket },
   { name: 'Bank Accounts', href: '/admin/bank-accounts', icon: Landmark },
