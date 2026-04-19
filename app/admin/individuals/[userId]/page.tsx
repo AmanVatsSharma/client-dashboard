@@ -182,7 +182,7 @@ export default function IndividualDetailPage() {
     description: '',
     dueDate: '',
     status: 'PENDING',
-    serviceId: '',
+    serviceId: '__none__',
   })
 
   useEffect(() => {
@@ -225,7 +225,7 @@ export default function IndividualDetailPage() {
         body: JSON.stringify({
           name: editForm.name || undefined,
           email: editForm.email || undefined,
-          phone: editForm.phone || undefined,
+          phone: editForm.phone !== '' ? editForm.phone : null,
           isActive: editForm.isActive === 'true',
         }),
       })
@@ -286,7 +286,7 @@ export default function IndividualDetailPage() {
       if (res.ok) {
         toast({ title: 'Invoice created' })
         setAddInvoiceOpen(false)
-        setInvoiceForm({ amount: '', description: '', dueDate: '', status: 'PENDING', serviceId: '' })
+        setInvoiceForm({ amount: '', description: '', dueDate: '', status: 'PENDING', serviceId: '__none__' })
         await loadData()
       } else {
         const d = await res.json()
@@ -554,17 +554,18 @@ export default function IndividualDetailPage() {
                       <Select
                         value={invoiceForm.serviceId}
                         onValueChange={v => {
-                          const svc = company.services.find(s => s.id === v)
+                          const serviceId = v === '__none__' ? '' : v
+                          const svc = company.services.find(s => s.id === serviceId)
                           setInvoiceForm(p => ({
                             ...p,
-                            serviceId: v,
+                            serviceId,
                             amount: svc && svc.price > 0 ? String(svc.price) : p.amount,
                           }))
                         }}
                       >
                         <SelectTrigger><SelectValue placeholder="No service" /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">No service</SelectItem>
+                          <SelectItem value="__none__">No service</SelectItem>
                           {company.services.map(s => (
                             <SelectItem key={s.id} value={s.id}>
                               {s.name}{s.isVariablePrice ? ' (variable)' : ` — ₹${s.price.toLocaleString()}`}
@@ -572,7 +573,7 @@ export default function IndividualDetailPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      {invoiceForm.serviceId && company.services.find(s => s.id === invoiceForm.serviceId)?.isVariablePrice && (
+                      {invoiceForm.serviceId !== '__none__' && company.services.find(s => s.id === invoiceForm.serviceId)?.isVariablePrice && (
                         <p className="text-[11px] text-amber-600">This service has variable pricing — enter this month&apos;s amount below</p>
                       )}
                     </div>
