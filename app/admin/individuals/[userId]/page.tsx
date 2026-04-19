@@ -18,7 +18,7 @@
  *   - @/components/ui/toaster      — toast notifications
  *
  * Side-effects:
- *   - GET /api/admin/individuals                         — fetches individual by userId, extracts companyId
+ *   - GET /api/admin/individuals/${userId}               — fetches individual by userId directly (single-record endpoint)
  *   - GET /api/admin/companies/${companyId}              — fetches services, invoices, tickets, notes
  *   - PATCH /api/admin/individuals/${userId}             — updates name, email, phone, isActive
  *   - POST /api/admin/companies/${companyId}/services    — creates a service for this individual's company
@@ -26,7 +26,9 @@
  *
  * Key invariants:
  *   - Individual clients own a personal company (isPersonal:true); all data lives under that companyId
- *   - Two-call data loading: first GET individuals list to get companyId, then GET company data
+ *   - Two-call data loading: GET individual by ID to get companyId, then GET company data
+ *   - invoiceForm.serviceId uses '' (empty string) for "no service"; Select maps '' → '__none__' for display only
+ *   - serviceId sentinel '__none__' must never reach the API; POST body normalises it to null
  *   - Notes tab uses a link to /admin/notes?companyId=... (consistent with company detail page pattern)
  *   - No "Users" tab — individual clients are solo (no team members)
  *   - Purple accent (bg-purple-100 text-purple-600) for person icon; action buttons stay indigo
@@ -182,7 +184,7 @@ export default function IndividualDetailPage() {
     description: '',
     dueDate: '',
     status: 'PENDING',
-    serviceId: '__none__',
+    serviceId: '',
   })
 
   useEffect(() => {
@@ -191,25 +193,35 @@ export default function IndividualDetailPage() {
   }, [userId])
 
   async function loadData() {
-    setLoading(true)
     try {
-      const res = await fetch('/api/admin/individuals')
-      if (!res.ok) { setNotFound(true); return }
-
-      const list: Individual[] = await res.json()
-      const found = list.find(i => i.id === userId)
-      if (!found || !found.companyId) { setNotFound(true); return }
-
-      setIndividual(found)
+      // Load individual by ID directly
+      const indRes = await fetch(`/api/admin/individuals/${userId}`)
+      if (!indRes.ok) {
+        if (indRes.status === 404) {
+          setNotFound(true)
+        } else {
+          toast({ title: 'Error', description: 'Failed to load client data', variant: 'destructive' })
+        }
+        return
+      }
+      const ind = await indRes.json()
+      setIndividual(ind)
       setEditForm({
-        name: found.name ?? '',
-        email: found.email,
-        phone: found.phone ?? '',
-        isActive: found.isActive ? 'true' : 'false',
+        name: ind.name ?? '',
+        email: ind.email,
+        phone: ind.phone ?? '',
+        isActive: ind.isActive ? 'true' : 'false',
       })
 
-      const compRes = await fetch(`/api/admin/companies/${found.companyId}`)
-      if (compRes.ok) setCompany(await compRes.json())
+      // Load company data
+      const compRes = await fetch(`/api/admin/companies/${ind.companyId}`)
+      if (!compRes.ok) {
+        toast({ title: 'Error', description: 'Failed to load client workspace data', variant: 'destructive' })
+        return
+      }
+      setCompany(await compRes.json())
+    } catch {
+      toast({ title: 'Error', description: 'Network error loading client data', variant: 'destructive' })
     } finally {
       setLoading(false)
     }
@@ -280,13 +292,13 @@ export default function IndividualDetailPage() {
         body: JSON.stringify({
           ...invoiceForm,
           amount: parseFloat(invoiceForm.amount),
-          serviceId: invoiceForm.serviceId || null,
+          serviceId: invoiceForm.serviceId && invoiceForm.serviceId !== '__none__' ? invoiceForm.serviceId : null,
         }),
       })
       if (res.ok) {
         toast({ title: 'Invoice created' })
         setAddInvoiceOpen(false)
-        setInvoiceForm({ amount: '', description: '', dueDate: '', status: 'PENDING', serviceId: '__none__' })
+        setInvoiceForm({ amount: '', description: '', dueDate: '', status: 'PENDING', serviceId: '' })
         await loadData()
       } else {
         const d = await res.json()
@@ -552,7 +564,7 @@ export default function IndividualDetailPage() {
                     <div className="col-span-2 space-y-1">
                       <Label>Service (optional)</Label>
                       <Select
-                        value={invoiceForm.serviceId}
+                        value={invoiceForm.serviceId || '__none__'}
                         onValueChange={v => {
                           const serviceId = v === '__none__' ? '' : v
                           const svc = company.services.find(s => s.id === serviceId)
@@ -573,7 +585,7 @@ export default function IndividualDetailPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      {invoiceForm.serviceId !== '__none__' && company.services.find(s => s.id === invoiceForm.serviceId)?.isVariablePrice && (
+                      {invoiceForm.serviceId && company.services.find(s => s.id === invoiceForm.serviceId)?.isVariablePrice && (
                         <p className="text-[11px] text-amber-600">This service has variable pricing — enter this month&apos;s amount below</p>
                       )}
                     </div>

@@ -83,7 +83,13 @@ export default function AdminIndividualsPage() {
   async function fetchIndividuals() {
     try {
       const res = await fetch('/api/admin/individuals')
-      if (res.ok) setIndividuals(await res.json())
+      if (res.ok) {
+        setIndividuals(await res.json())
+      } else {
+        toast({ title: 'Error', description: 'Failed to load individual clients', variant: 'destructive' })
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' })
     } finally {
       setLoading(false)
     }
